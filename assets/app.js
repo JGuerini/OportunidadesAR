@@ -133,22 +133,12 @@ function friendlyId(r) {
 
 function canEdit(r) {
   const s = AUTH.getSession();
-  if (!s || s.perfil === 'solo lectura') return false;
-  return s.perfil === 'admin' || r.responsableUid === s.uid;
-}
-
-function canDelete() {
-  const s = AUTH.getSession();
-  return s && s.perfil === 'admin';
-}
-
-function isReadOnly() {
-  const s = AUTH.getSession();
-  return s && s.perfil === 'solo lectura';
+  if (!s) return false;
+  return s.perfil === 'admin' || r.responsable === s.nombre;
 }
 
 function badgeEstado(e) {
-  return { 'En Desarrollo': 'badge-desarrollo', 'Entregada': 'badge-entregada', 'Finalizada': 'badge-finalizada', 'Pausa': 'badge-pausa', 'Perdida': 'badge-perdida', 'Ganada': 'badge-ganada', 'Cancelada': 'badge-cancelada', 'No Go': 'badge-nogo' }[e] || '';
+  return { 'En Desarrollo': 'badge-desarrollo', 'Entregada': 'badge-entregada', 'Finalizada': 'badge-finalizada', 'Pausa': 'badge-pausa', 'No Go': 'badge-nogo', 'Cancelada': 'badge-cancelada', 'Perdida': 'badge-perdido', 'Ganada': 'badge-ganado' }[e] || '';
 }
 
 function showAlert(id, msg, type) {
@@ -249,19 +239,15 @@ const TOAST = (() => {
 // NAVIGATION
 // ══════════════════════════════════════════════
 const PAGE_TITLES = {
-  home: 'Inicio', nueva: 'Nueva Oportunidad', modificar: 'Modificar Oportunidad',
+  home: 'Inicio', nueva: 'Nueva Oportunidad',
   mis: 'Mis Oportunidades', todas: 'Ver Todas', kanban: 'Kanban',
-  estadisticas: 'Estadísticas', perfil: 'Mi Perfil', usuarios: 'Administración'
+  calendario: 'Calendario', estadisticas: 'Estadísticas', perfil: 'Mi Perfil', log: 'Log de Eventos', usuarios: 'Administración'
 };
 
 function navigate(btn) {
-  const page = btn.dataset.page;
-  if (isReadOnly() && ['nueva', 'modificar', 'mis'].includes(page)) {
-    TOAST.warning('Tu perfil es de solo lectura.');
-    return;
-  }
   document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
   btn.classList.add('active');
+  const page = btn.dataset.page;
   document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
   document.getElementById('pageTitle').textContent = PAGE_TITLES[page] || page;
@@ -273,9 +259,10 @@ function onPageEnter(page) {
   else if (page === 'mis')          initMis();
   else if (page === 'todas')        initTabla();
   else if (page === 'kanban')       initKanban();
+  else if (page === 'calendario')   initCalendario();
   else if (page === 'estadisticas') renderStats();
-  else if (page === 'modificar')    initModSearch();
   else if (page === 'perfil')       renderPerfil();
+  else if (page === 'log')          initLog();
   else if (page === 'usuarios')     loadUsuarios();
 }
 
@@ -283,9 +270,10 @@ function onPageEnter(page) {
 // STATUS CHECK
 // ══════════════════════════════════════════════
 async function checkConexion() {
+  // Primero verificar conexion de red (no consume Firebase)
+  if (!navigator.onLine) { setStatus('error'); return; }
   setStatus('sincronizando');
   try {
-    // Con Firebase, simplemente verificamos que podemos leer
     await firebase.firestore().collection('oportunidades').limit(1).get();
     setStatus('conectado');
   } catch(e) { setStatus('error'); }
@@ -400,7 +388,6 @@ function calcFX(prefix) {
 // ══════════════════════════════════════════════
 async function handleNueva(e) {
   e.preventDefault();
-  if (isReadOnly()) { TOAST.error('No tenés permisos para crear oportunidades.'); return; }
   const btn = document.getElementById('n_submitBtn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner-inline"></span>Guardando...';
@@ -424,6 +411,7 @@ async function handleNueva(e) {
       probabilidad: document.getElementById('n_probabilidad').value || '',
       pm:           document.getElementById('n_pm').value || ''
     });
+    CRM.logEvento('creacion', 'Creó la oportunidad', id, '', document.getElementById('n_nombre').value);
     TOAST.success('Oportunidad guardada exitosamente.');
     resetNueva();
   } catch(err) {
@@ -446,49 +434,24 @@ function resetNueva() {
 }
 
 // ══════════════════════════════════════════════
-// MODIFICAR OPORTUNIDAD
+// EDITAR OPORTUNIDAD (MODAL)
 // ══════════════════════════════════════════════
-let _modRows = [];
 
-async function initModSearch() {
-  document.getElementById('modSearch').style.display = 'block';
-  document.getElementById('modEditForm').style.display = 'none';
-  document.getElementById('modLoadingSearch').style.display = 'flex';
-  _modRows = await CRM.getData();
-  document.getElementById('modLoadingSearch').style.display = 'none';
-  doModSearch();
+function findRowById(id) {
+  return _tablaRows.find(x => x.id === id) || _kanbanRows.find(x => x.id === id) || _calRows.find(x => x.id === id) || _misRows.find(x => x.id === id) || null;
 }
 
-function doModSearch() {
-  const q = document.getElementById('modSearchInput').value.trim().toLowerCase();
-  const session = AUTH.getSession();
-  let rows = _modRows;
-  if (session && session.perfil !== 'admin') rows = rows.filter(r => r.responsableUid === session.uid);
-  const filtered = q
-    ? rows.filter(r => (r.cliente || '').toLowerCase().includes(q) || (r.nombre || '').toLowerCase().includes(q) || (r.codigo || '').toLowerCase().includes(q))
-    : rows.slice(0, 20);
-  const list  = document.getElementById('modResultList');
-  const empty = document.getElementById('modEmptySearch');
-  if (filtered.length === 0) { list.innerHTML = ''; empty.style.display = 'block'; return; }
-  empty.style.display = 'none';
-  list.innerHTML = filtered.slice(0, 20).map(r => `
-    <div class="result-item" onclick="loadModItem('${r.id}')">
-      <div><div class="result-item-name">${r.nombre || '—'}</div><div class="result-item-sub">${r.cliente || '—'} · ${friendlyId(r)}</div></div>
-      <span class="badge ${badgeEstado(r.estado)}">${r.estado || '—'}</span>
-    </div>`).join('');
-}
-
-async function loadModItem(id) {
-  let r = _modRows.find(x => x.id === id);
+async function openEditModal(id) {
+  let r = findRowById(id);
   if (!r) r = await CRM.getOportunidad(id);
   if (!r) return;
   const session = AUTH.getSession();
-  if (session && session.perfil !== 'admin' && r.responsableUid !== session.uid) {
+  if (session && session.perfil !== 'admin' && r.responsable !== session.nombre) {
     alert('Solo podés editar oportunidades que te pertenecen.');
     return;
   }
   document.getElementById('e_id').value = id;
-  document.getElementById('modEditTitle').textContent = r.nombre;
+  document.getElementById('editModalTitle').textContent = r.nombre;
   document.getElementById('e_cliente').value      = r.cliente || '';
   document.getElementById('e_industria').value    = r.industria || '';
   document.getElementById('e_practica').value     = r.practica || '';
@@ -513,39 +476,36 @@ async function loadModItem(id) {
   if (eur) { tv.className = ''; tv.textContent = '€ ' + eur.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   else { tv.className = 'fx-loading'; tv.textContent = '—'; }
 
+  const badge = document.getElementById('e_fxBadge');
   if (r.tipoCambio && r.currency) {
-    const badge = document.getElementById('e_fxBadge');
     badge.style.display = 'inline-flex';
     badge.textContent = `1 ${r.currency} = ${parseFloat(r.tipoCambio).toFixed(4)} EUR`;
+  } else {
+    badge.style.display = 'none';
   }
   document.getElementById('e_btnDelete').style.display = session && session.perfil === 'admin' ? '' : 'none';
   if (session && session.perfil !== 'admin') document.getElementById('e_responsable').readOnly = true;
   else document.getElementById('e_responsable').readOnly = false;
 
-  document.getElementById('modSearch').style.display = 'none';
-  document.getElementById('modEditForm').style.display = 'block';
-  window.scrollTo(0, 0);
+  document.getElementById('editModalOverlay').classList.add('open');
 }
 
-function backToModSearch() {
-  document.getElementById('modSearch').style.display = 'block';
-  document.getElementById('modEditForm').style.display = 'none';
+function closeEditModal(event) {
+  if (event && event.target !== document.getElementById('editModalOverlay')) return;
+  document.getElementById('editModalOverlay').classList.remove('open');
   _fxRates['e'] = null;
 }
 
 async function handleUpdate(e) {
   e.preventDefault();
   const id  = document.getElementById('e_id').value;
-  if (isReadOnly()) { TOAST.error('No tenés permisos para modificar.'); return; }
-  const session = AUTH.getSession();
-  if (session && session.perfil !== 'admin') {
-    const r = _modRows.find(x => x.id === id);
-    if (r && r.responsableUid !== session.uid) {
-      TOAST.error('Solo podés editar oportunidades que te pertenecen.');
-      return;
-    }
-  }
   const btn = document.getElementById('e_submitBtn');
+
+  // Capturar estado viejo antes de actualizar
+  const opp = findRowById(id) || {};
+  const oldEstado = opp.estado || '';
+  const newEstado = document.getElementById('e_estado').value;
+
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner-inline"></span>Guardando...';
   try {
@@ -568,11 +528,17 @@ async function handleUpdate(e) {
       probabilidad: document.getElementById('e_probabilidad').value || '',
       pm:           document.getElementById('e_pm').value || ''
     });
+
+    // Log del evento
+    if (oldEstado && newEstado && oldEstado !== newEstado) {
+      CRM.logEvento('cambio_estado', `Cambio estado: ${oldEstado} → ${newEstado}`, id, opp.codigo, opp.nombre);
+    } else {
+      CRM.logEvento('edicion', 'Editó la oportunidad', id, opp.codigo, opp.nombre);
+    }
     TOAST.success('Oportunidad actualizada correctamente.');
-    backToModSearch();
+    closeEditModal();
     CRM.invalidateCache();
-    _modRows = await CRM.getData();
-    doModSearch();
+    await refreshCurrentPage();
   } catch(err) {
     TOAST.error('Error al actualizar. Intentá de nuevo.');
   } finally {
@@ -582,27 +548,38 @@ async function handleUpdate(e) {
 }
 
 async function handleDelete() {
-  if (!canDelete()) { TOAST.error('No tenés permisos para eliminar.'); return; }
   const id   = document.getElementById('e_id').value;
-  const name = document.getElementById('modEditTitle').textContent;
+  const name = document.getElementById('editModalTitle').textContent;
+  const oppDel = findRowById(id) || {};
   if (!confirm(`¿Seguro que querés eliminar "${name}"?`)) return;
   try {
     await CRM.deleteOportunidad(id);
+    CRM.logEvento('eliminacion', 'Eliminó la oportunidad', id, oppDel.codigo, oppDel.nombre);
     TOAST.success('Oportunidad eliminada.');
-    backToModSearch();
+    closeEditModal();
     CRM.invalidateCache();
-    _modRows = await CRM.getData();
-    doModSearch();
+    await refreshCurrentPage();
   } catch(err) {
     TOAST.error('Error al eliminar.');
   }
+}
+
+async function refreshCurrentPage() {
+  const activePage = document.querySelector('.nav-item.active');
+  if (!activePage) return;
+  const page = activePage.dataset.page;
+  if (page === 'todas') await initTabla();
+  else if (page === 'mis') await initMis();
+  else if (page === 'kanban') await initKanban();
+  else if (page === 'calendario') await initCalendario();
+  else if (page === 'estadisticas') await renderStats();
+  else if (page === 'home') await renderHome();
 }
 
 // ══════════════════════════════════════════════
 // TODAS LAS OPORTUNIDADES
 // ══════════════════════════════════════════════
 let _tablaRows = [], _sortKey = 'fechaCreacion', _sortDir = -1, _tablaPage = 1;
-let _bulkSelected = new Set(); // IDs seleccionados para eliminación masiva
 
 async function initTabla() {
   document.getElementById('todasLoading').style.display = 'flex';
@@ -624,9 +601,6 @@ async function initTabla() {
   clientes.forEach(cl => selC.innerHTML += `<option>${cl}</option>`);
 
   _tablaPage = 1;
-  _bulkSelected.clear();
-  const isAdmin = AUTH.getSession()?.perfil === 'admin';
-  document.getElementById('thSelectAll').style.display = isAdmin ? '' : 'none';
   renderTabla();
 }
 
@@ -668,10 +642,8 @@ function renderTabla(page) {
   empty.style.display = 'none';
 
   const pg = paginate(rows, _tablaPage);
-  const isAdmin = AUTH.getSession()?.perfil === 'admin';
   body.innerHTML = pg.rows.map(r => `
-    <tr${_bulkSelected.has(r.id) ? ' style="background:color-mix(in srgb, var(--accent) 8%, transparent)"' : ''}>
-      ${isAdmin ? `<td style="text-align:center"><input type="checkbox" ${_bulkSelected.has(r.id) ? 'checked' : ''} onchange="toggleBulkSelect('${r.id}', this.checked)" style="cursor:pointer;accent-color:var(--accent)"/></td>` : ''}
+    <tr>
       <td class="col-id">${friendlyId(r)}</td>
       <td style="font-weight:600">${r.cliente || '—'}</td>
       <td style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.nombre || '—'}</td>
@@ -683,127 +655,20 @@ function renderTabla(page) {
       </td>
     </tr>`).join('');
 
-  updateBulkUI();
   renderPagination('todasPagination', pg, (p) => renderTabla(p));
 }
 
-// ── BULK DELETE ──
-function toggleBulkSelect(id, checked) {
-  if (checked) _bulkSelected.add(id); else _bulkSelected.delete(id);
-  renderTabla();
-}
-
-function toggleSelectAll(checked) {
-  const filteredIds = getFilteredTablaRows().map(r => r.id);
-  if (checked) filteredIds.forEach(id => _bulkSelected.add(id));
-  else filteredIds.forEach(id => _bulkSelected.delete(id));
-  renderTabla();
-}
-
-function getFilteredTablaRows() {
-  const q    = document.getElementById('t_search').value.trim().toLowerCase();
-  const est  = document.getElementById('t_estado').value;
-  const prac = document.getElementById('t_practica').value;
-  const resp = document.getElementById('t_responsable').value;
-  const cli  = document.getElementById('t_cliente').value;
-  return _tablaRows.filter(r => {
-    if (cli  && r.cliente  !== cli)  return false;
-    if (est  && r.estado   !== est)  return false;
-    if (prac && r.practica !== prac) return false;
-    if (resp && r.responsable !== resp) return false;
-    if (q) {
-      const h = [r.codigo, r.cliente, r.nombre, r.responsable].join(' ').toLowerCase();
-      if (!h.includes(q)) return false;
-    }
-    return true;
-  });
-}
-
-function updateBulkUI() {
-  const bar = document.getElementById('bulkBar');
-  const count = _bulkSelected.size;
-  if (count > 0) {
-    bar.style.display = 'flex';
-    document.getElementById('bulkCount').textContent = count;
-    document.getElementById('bulkPlural').textContent = count === 1 ? '' : 'es';
-    document.getElementById('bulkPlural2').textContent = count === 1 ? '' : 's';
-  } else {
-    bar.style.display = 'none';
-  }
-  // Sync "select all" checkbox
-  const filteredIds = getFilteredTablaRows().map(r => r.id);
-  const allBox = document.getElementById('selectAllCheckbox');
-  if (allBox) {
-    if (filteredIds.length > 0 && filteredIds.every(id => _bulkSelected.has(id))) allBox.checked = true;
-    else allBox.checked = false;
-  }
-}
-
-function clearBulkSelection() {
-  _bulkSelected.clear();
-  document.getElementById('selectAllCheckbox').checked = false;
-  renderTabla();
-}
-
-function openBulkDeleteModal() {
-  if (_bulkSelected.size === 0) return;
-  document.getElementById('bulkDeleteCount').textContent = _bulkSelected.size;
-  document.getElementById('bulkDeletePlural').textContent = _bulkSelected.size === 1 ? '' : 'es';
-  document.getElementById('bulkDeleteConfirmBtn').disabled = false;
-  document.getElementById('bulkDeleteConfirmBtn').textContent = 'Eliminar';
-  document.getElementById('bulkDeleteModal').classList.add('open');
-}
-
-function closeBulkDeleteModal(event) {
-  if (event && event.target !== document.getElementById('bulkDeleteModal')) return;
-  document.getElementById('bulkDeleteModal').classList.remove('open');
-}
-
-async function executeBulkDelete() {
-  if (!canDelete()) { TOAST.error('No tenés permisos para eliminar.'); return; }
-  const btn = document.getElementById('bulkDeleteConfirmBtn');
-  btn.disabled = true;
-  btn.textContent = 'Eliminando...';
-
-  const ids = [..._bulkSelected];
-  let ok = 0, fail = 0;
-  for (const id of ids) {
-    try {
-      await CRM.deleteOportunidad(id);
-      ok++;
-    } catch (e) {
-      console.error('Error eliminando', id, e);
-      fail++;
-    }
-  }
-
-  closeBulkDeleteModal();
-  _bulkSelected.clear();
-
-  if (fail === 0) {
-    TOAST.success(`${ok} oportunidad${ok !== 1 ? 'es' : ''} eliminada${ok !== 1 ? 's' : ''} correctamente`);
-  } else {
-    TOAST.warning(`${ok} eliminada${ok !== 1 ? 's' : ''}, ${fail} con error`);
-  }
-
-  // Reload data
-  await initTabla();
-  CRM.invalidateCache();
-}
-
 function editFromTabla(id) {
-  navigate(document.querySelector('[data-page="modificar"]'));
-  setTimeout(() => loadModItem(id), 300);
+  openEditModal(id);
 }
 
 function verOportunidad(id) {
-  let r = _tablaRows.find(x => x.id === id) || _kanbanRows.find(x => x.id === id);
+  let r = _tablaRows.find(x => x.id === id) || _kanbanRows.find(x => x.id === id) || _calRows.find(x => x.id === id);
   if (!r) return;
 
   document.getElementById('verModalId').textContent = friendlyId(r);
   document.getElementById('verModalTitle').textContent = r.nombre || '—';
-  document.getElementById('verModalEditBtn').setAttribute('onclick', `closeVerModal(); editFromTabla('${id}')`);
-  document.getElementById('verModalEditBtn').style.display = canEdit(r) ? '' : 'none';
+  document.getElementById('verModalEditBtn').setAttribute('onclick', `closeVerModal(); openEditModal('${id}')`);
 
   const fmtVal = v => v || '—';
   const fmtEURv = v => v ? '€ ' + parseFloat(v).toLocaleString('es-AR', { minimumFractionDigits: 2 }) : '—';
@@ -863,6 +728,127 @@ function closeVerModal(event) {
 async function downloadExcelAction() {
   const rows = await CRM.getData();
   CRM.downloadExcel(rows);
+}
+
+// ══════════════════════════════════════════════
+// CALENDARIO
+// ══════════════════════════════════════════════
+let _calYear, _calMonth, _calRows = [];
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const DIAS_SEMANA = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+
+async function initCalendario() {
+  document.getElementById('calLoading').style.display = 'flex';
+  document.getElementById('calContent').style.display = 'none';
+  _calRows = await CRM.getData();
+  document.getElementById('calLoading').style.display = 'none';
+  document.getElementById('calContent').style.display = 'block';
+  if (_calYear === undefined) {
+    const now = new Date();
+    _calYear = now.getFullYear();
+    _calMonth = now.getMonth();
+  }
+  renderCalendario();
+}
+
+function calNavMonth(delta) {
+  _calMonth += delta;
+  if (_calMonth > 11) { _calMonth = 0; _calYear++; }
+  if (_calMonth < 0)  { _calMonth = 11; _calYear--; }
+  renderCalendario();
+}
+
+function calGoToday() {
+  const now = new Date();
+  _calYear = now.getFullYear();
+  _calMonth = now.getMonth();
+  renderCalendario();
+}
+
+function renderCalendario() {
+  document.getElementById('calMonthLabel').textContent = `${MESES[_calMonth]} ${_calYear}`;
+
+  const grid = document.getElementById('calGrid');
+  const firstDay = new Date(_calYear, _calMonth, 1);
+  const lastDay  = new Date(_calYear, _calMonth + 1, 0);
+  const startDow = (firstDay.getDay() + 6) % 7; // Mon=0
+  const daysInMonth = lastDay.getDate();
+
+  // Build events map: key = "YYYY-MM-DD", value = [{row, type}]
+  const events = {};
+  _calRows.forEach(r => {
+    if (r.fechaEntrega) {
+      const d = toInputDate(r.fechaEntrega);
+      if (d) {
+        const key = d.substring(0, 10);
+        if (!events[key]) events[key] = [];
+        events[key].push({ row: r, type: 'entrega' });
+      }
+    }
+    if (r.fechaInicio && r.fechaEntrega) {
+      const d = toInputDate(r.fechaInicio);
+      if (d) {
+        const key = d.substring(0, 10);
+        if (!events[key]) events[key] = [];
+        events[key].push({ row: r, type: 'inicio' });
+      }
+    }
+  });
+
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+  // Previous month trailing days
+  const prevLast = new Date(_calYear, _calMonth, 0).getDate();
+  let html = '<div class="cal-grid-header">' + DIAS_SEMANA.map(d => `<div class="cal-dow">${d}</div>`).join('') + '</div>';
+  html += '<div class="cal-grid-body">';
+
+  // Previous month padding
+  for (let i = startDow - 1; i >= 0; i--) {
+    html += `<div class="cal-day cal-day-other">${prevLast - i}</div>`;
+  }
+
+  // Current month days
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${_calYear}-${String(_calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday = dateStr === todayStr;
+    const dayEvents = events[dateStr] || [];
+
+    html += `<div class="cal-day${isToday ? ' cal-day-today' : ''}">`;
+    html += `<div class="cal-day-num">${d}</div>`;
+
+    if (dayEvents.length > 0) {
+      html += '<div class="cal-events">';
+      dayEvents.slice(0, 3).forEach(ev => {
+        const color = CRM.ESTADO_COLORS[ev.row.estado] || 'var(--text-muted)';
+        if (ev.type === 'entrega') {
+          html += `<div class="cal-event cal-event-entrega" style="border-left-color:${color}" onclick="verOportunidad('${ev.row.id}')" title="${ev.row.nombre || ''} — ${ev.row.cliente || ''}">
+            <span class="cal-event-dot" style="background:${color}"></span>
+            <span class="cal-event-text">${ev.row.nombre || '—'}</span>
+          </div>`;
+        } else {
+          html += `<div class="cal-event cal-event-inicio" onclick="verOportunidad('${ev.row.id}')" title="Inicio: ${ev.row.nombre || ''}">
+            <span class="cal-event-text">${ev.row.nombre || '—'}</span>
+          </div>`;
+        }
+      });
+      if (dayEvents.length > 3) {
+        html += `<div class="cal-event-more">+${dayEvents.length - 3} más</div>`;
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+
+  // Next month padding
+  const totalCells = startDow + daysInMonth;
+  const remaining = (7 - (totalCells % 7)) % 7;
+  for (let i = 1; i <= remaining; i++) {
+    html += `<div class="cal-day cal-day-other">${i}</div>`;
+  }
+
+  html += '</div>';
+  grid.innerHTML = html;
 }
 
 // ══════════════════════════════════════════════
@@ -963,14 +949,13 @@ async function renderStats() {
 function renderPerfil() {
   const s = AUTH.getSession();
   if (!s) return;
-  const perfBadge = s.perfil === 'admin' ? 'badge-admin' : s.perfil === 'solo lectura' ? 'badge-readonly' : 'badge-usuario';
-  const perfLabel = s.perfil === 'solo lectura' ? 'Solo Lectura' : s.perfil;
+  const perfBadge = s.perfil === 'admin' ? 'badge-admin' : 'badge-usuario';
   document.getElementById('perfilInfo').innerHTML =
     `<div style="display:flex;align-items:center;gap:16px;margin-bottom:24px">
       <div style="width:56px;height:56px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;flex-shrink:0">${s.nombre.split(' ').map(n => n[0]).slice(0, 2).join('')}</div>
       <div><div style="font-size:16px;font-weight:700">${s.nombre}</div><div style="font-size:12px;color:var(--text-muted);margin-top:2px">${s.email}</div></div>
     </div>
-    ${infoRow('Perfil', `<span class="badge ${perfBadge}">${perfLabel}</span>`)}
+    ${infoRow('Perfil', `<span class="badge ${perfBadge}">${s.perfil}</span>`)}
     ${infoRow('Estado', '<span class="badge badge-activa">Activo</span>')}`;
   updateThemeUI();
 }
@@ -1031,7 +1016,7 @@ async function loadUsuarios() {
     <tr>
       <td style="font-weight:600">${u.nombre}</td>
       <td style="color:var(--text-muted);font-size:12px">${u.email}</td>
-      <td><span class="badge ${u.perfil === 'admin' ? 'badge-admin' : u.perfil === 'solo lectura' ? 'badge-readonly' : 'badge-usuario'}">${u.perfil === 'solo lectura' ? 'Solo Lectura' : u.perfil}</span></td>
+      <td><span class="badge ${u.perfil === 'admin' ? 'badge-admin' : 'badge-usuario'}">${u.perfil}</span></td>
       <td><span class="badge ${u.activo ? 'badge-activa' : 'badge-cerrada'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
       <td style="text-align:center"><button class="btn-sm" onclick="openUserModal('edit','${u.uid}')">Editar</button></td>
     </tr>`).join('');
@@ -1211,7 +1196,7 @@ function processImportFile(file) {
   const reader = new FileReader();
   reader.onload = (e) => {
     try {
-      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      const wb = XLSX.read(e.target.result, { type: 'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
 
@@ -1253,15 +1238,10 @@ function renderImportPreview(fileName, headers, rows) {
 
   // Show first 10 rows
   const previewRows = rows.slice(0, 10);
-  const DATE_COLS = ['Fecha de Inicio', 'Fecha de Entrega'];
   const body = document.getElementById('importPreviewBody');
   body.innerHTML = previewRows.map((row, i) =>
     '<tr>' + matchedCols.map(h => {
-      let val = row[h] !== undefined ? row[h] : '';
-      // Format Date objects for preview
-      if (val instanceof Date && !isNaN(val.getTime())) {
-        val = val.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      }
+      const val = row[h] !== undefined ? row[h] : '';
       const isMissing = !val && h === 'Nombre de la Oportunidad';
       return `<td style="${isMissing ? 'color:#f87171;font-weight:600' : ''}">${val || '—'}</td>`;
     }).join('') + '</tr>'
@@ -1299,10 +1279,6 @@ async function executeImport() {
       if (val !== undefined && val !== '') data[field] = val;
     });
 
-    // Convert dates from Excel format to YYYY-MM-DD strings
-    if (data.fechaInicio) data.fechaInicio = toInputDate(data.fechaInicio);
-    if (data.fechaEntrega) data.fechaEntrega = toInputDate(data.fechaEntrega);
-
     // Skip rows without a name
     if (!data.nombre) {
       fail++;
@@ -1327,6 +1303,7 @@ async function executeImport() {
 
     try {
       await CRM.addOportunidad(data);
+      CRM.logEvento('creacion', 'Importó oportunidad masivamente', '', '', data.nombre);
       ok++;
     } catch(err) {
       fail++;
@@ -1380,16 +1357,20 @@ async function initKanban() {
 
   const session = AUTH.getSession();
   const raw = await CRM.getData();
-  // Todos los roles ven todas las cards del Kanban
-  _kanbanRows = raw;
+  _kanbanRows = raw; // Todos los roles ven todas las cards
 
-  // Populate responsables filter (available for all roles)
+  // Populate responsables filter (admin only)
   const selR = document.getElementById('k_responsable');
   const filters = document.getElementById('kanbanFilters');
-  filters.style.display = 'flex';
-  const resps = [...new Set(_kanbanRows.map(r => r.responsable).filter(Boolean))].sort();
-  selR.innerHTML = '<option value="">Todos los responsables</option>';
-  resps.forEach(r => selR.innerHTML += `<option>${r}</option>`);
+  if (session.perfil === 'admin') {
+    filters.style.display = 'flex';
+    const resps = [...new Set(_kanbanRows.map(r => r.responsable).filter(Boolean))].sort();
+    selR.innerHTML = '<option value="">Todos los responsables</option>';
+    resps.forEach(r => selR.innerHTML += `<option>${r}</option>`);
+  } else {
+    filters.style.display = 'flex';
+    selR.style.display = 'none';
+  }
 
   loading.style.display = 'none';
   board.style.display = 'flex';
@@ -1400,7 +1381,6 @@ function renderKanban() {
   const q = document.getElementById('k_search').value.trim().toLowerCase();
   const resp = document.getElementById('k_responsable').value;
   const session = AUTH.getSession();
-  const KANBAN_COLS = ['En Desarrollo', 'Entregada', 'Finalizada', 'Pausa', 'Perdida', 'Ganada'];
 
   let rows = _kanbanRows;
   if (resp) rows = rows.filter(r => r.responsable === resp);
@@ -1410,7 +1390,7 @@ function renderKanban() {
   });
 
   const board = document.getElementById('kanbanBoard');
-  board.innerHTML = KANBAN_COLS.map(estado => {
+  board.innerHTML = CRM.ESTADOS.map(estado => {
     const color = CRM.ESTADO_COLORS[estado];
     const cards = rows.filter(r => r.estado === estado);
     return `
@@ -1456,21 +1436,11 @@ function renderKanban() {
   });
 }
 
-function canMoveCard(r) {
-  const s = AUTH.getSession();
-  if (!s) return false;
-  if (s.perfil === 'admin') return true;
-  if (s.perfil === 'solo lectura') return false;
-  // usuario: solo puede mover sus propias cards
-  return r.responsableUid === s.uid;
-}
-
 function renderKanbanCard(r) {
   const color = CRM.ESTADO_COLORS[r.estado] || 'var(--border)';
   const tcvDisplay = r.tcv ? Number(r.tcv).toLocaleString('es-AR') + (r.currency ? ' ' + r.currency : '') : '—';
-  const movable = canMoveCard(r);
   return `
-    <div class="kanban-card${movable ? '' : ' kanban-card-locked'}"${movable ? ' draggable="true"' : ''} data-id="${r.id}" data-estado="${r.estado}" style="border-left-color:${color}">
+    <div class="kanban-card" draggable="true" data-id="${r.id}" data-estado="${r.estado}" style="border-left-color:${color}">
       <div class="kanban-card-id">${friendlyId(r)}</div>
       <div class="kanban-card-client">${r.cliente || '—'}</div>
       <div class="kanban-card-name">${r.nombre || '—'}</div>
@@ -1512,15 +1482,19 @@ document.addEventListener('click', (e) => {
 });
 
 async function handleKanbanDrop(id, newEstado) {
-  if (isReadOnly()) { TOAST.error('No tenés permisos para mover oportunidades.'); return; }
   const r = _kanbanRows.find(x => x.id === id);
   if (!r) return;
 
   const oldEstado = r.estado;
   if (oldEstado === newEstado) return;
 
-  // Check move permissions using canMoveCard
-  if (!canMoveCard(r)) {
+  // Check edit permissions
+  const session = AUTH.getSession();
+  if (session.perfil === 'solo lectura') {
+    TOAST.error('No tenés permisos para mover oportunidades.');
+    return;
+  }
+  if (session.perfil !== 'admin' && r.responsable !== session.nombre) {
     TOAST.error('No tenés permisos para mover esta oportunidad.');
     return;
   }
@@ -1531,10 +1505,11 @@ async function handleKanbanDrop(id, newEstado) {
 
   try {
     await CRM.updateOportunidad(id, { estado: newEstado });
+    CRM.logEvento('cambio_estado', `Cambio estado: ${oldEstado} → ${newEstado}`, id, r.codigo, r.nombre);
     TOAST.success(`"${r.nombre}" → ${newEstado}`);
-    // Refresh data in background (todos ven todas las cards)
+    // Refresh data in background
     const fresh = await CRM.getData();
-    _kanbanRows = fresh;
+    _kanbanRows = fresh; // Todos los roles ven todas las cards
     renderKanban();
   } catch(err) {
     // Rollback on error
@@ -1554,7 +1529,7 @@ async function initMis() {
   document.getElementById('misTable').style.display = 'none';
   const session = AUTH.getSession();
   const raw = await CRM.getData();
-  _misRows = raw.filter(r => r.responsableUid === session.uid);
+  _misRows = raw.filter(r => r.responsable === session.nombre);
   document.getElementById('misLoading').style.display = 'none';
   document.getElementById('misTable').style.display = 'block';
   _misPage = 1;
@@ -1609,32 +1584,81 @@ function renderMis(page) {
 }
 
 // ══════════════════════════════════════════════
-// CHECK USER ACTIVE STATUS
+// LOG DE EVENTOS
 // ══════════════════════════════════════════════
-async function checkUserActive() {
-  const session = AUTH.getSession();
-  if (!session) return;
-  try {
-    const doc = await firebase.firestore().collection('usuarios').doc(session.uid).get();
-    if (doc.exists) {
-      const data = doc.data();
-      if (data.activo === false) {
-        TOAST.error('Tu cuenta ha sido desactivada por un administrador.');
-        setTimeout(() => { AUTH.logout(); }, 2500);
-        return;
-      }
-      // Refrescar datos de sesión con lo más reciente de Firestore
-      session.perfil = data.perfil || session.perfil;
-      session.nombre = data.nombre || session.nombre;
-      session.email  = data.email  || session.email;
-      document.getElementById('userName').textContent = session.nombre.split(' ').slice(0, 2).join(' ');
-      const perfLabels = { 'admin': 'Admin', 'usuario': 'Usuario', 'solo lectura': 'Solo Lectura' };
-      document.getElementById('userPerfil').textContent = perfLabels[session.perfil] || session.perfil;
-      document.getElementById('userAvatar').textContent = session.nombre.split(' ').map(n => n[0]).slice(0, 2).join('');
-    }
-  } catch(e) {
-    console.error('Error verificando estado del usuario:', e);
-  }
+function timeAgo(dateStr) {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now - date;
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return 'Ahora mismo';
+  if (diffMin < 60) return `Hace ${diffMin} min`;
+  const diffHrs = Math.floor(diffMin / 60);
+  if (diffHrs < 24) return `Hace ${diffHrs}h`;
+  const diffDays = Math.floor(diffHrs / 24);
+  if (diffDays < 7) return `Hace ${diffDays}d`;
+  return date.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' });
+}
+
+const ACCION_STYLES = {
+  creacion:      { icon: '➕', color: '#22c55e', label: 'Creación' },
+  edicion:       { icon: '✏️', color: '#3b82f6', label: 'Edición' },
+  eliminacion:   { icon: '🗑️', color: '#ef4444', label: 'Eliminación' },
+  cambio_estado: { icon: '🔄', color: '#f59e0b', label: 'Cambio de estado' }
+};
+
+async function initLog() {
+  const loading = document.getElementById('logLoading');
+  const feed    = document.getElementById('logFeed');
+  const empty   = document.getElementById('logEmpty');
+  loading.style.display = 'flex';
+  feed.style.display = 'none';
+  empty.style.display = 'none';
+
+  const events = await CRM.getLogEventos(150);
+  loading.style.display = 'none';
+
+  if (events.length === 0) { empty.style.display = 'block'; return; }
+
+  // Agrupar por fecha
+  const groups = {};
+  events.forEach(ev => {
+    const d = new Date(ev.fecha);
+    const dayKey = d.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
+    if (!groups[dayKey]) groups[dayKey] = [];
+    groups[dayKey].push(ev);
+  });
+
+  let html = '';
+  Object.entries(groups).forEach(([dayLabel, dayEvents]) => {
+    html += `<div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin:24px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)">${dayLabel}</div>`;
+    dayEvents.forEach(ev => {
+      const style = ACCION_STYLES[ev.accion] || ACCION_STYLES.edicion;
+      const oppLink = ev.oppId ? `<span style="color:var(--accent);font-weight:600;cursor:pointer" onclick="verOportunidadLog('${ev.oppId}')">${ev.oppCodigo || ev.oppNombre || ev.oppId.substring(0,8)}</span>` : '';
+      html += `
+        <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid color-mix(in srgb, var(--border) 50%, transparent)">
+          <div style="width:32px;height:32px;border-radius:8px;background:color-mix(in srgb, ${style.color} 12%, transparent);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">${style.icon}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:500;color:var(--text);line-height:1.4">
+              <span style="font-weight:600">${ev.usuario || 'Usuario'}</span>
+              ${ev.detalle}
+              ${oppLink}
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;display:flex;align-items:center;gap:8px">
+              <span style="background:color-mix(in srgb, ${style.color} 15%, transparent);color:${style.color};padding:1px 8px;border-radius:10px;font-weight:600;font-size:10px">${style.label}</span>
+              <span>${timeAgo(ev.fecha)}</span>
+            </div>
+          </div>
+        </div>`;
+    });
+  });
+
+  feed.innerHTML = html;
+  feed.style.display = 'block';
+}
+
+function verOportunidadLog(id) {
+  openEditModal(id);
 }
 
 // ══════════════════════════════════════════════
@@ -1646,22 +1670,18 @@ function initApp() {
   if (!session) return;
 
   // User info
-  const perfLabels = { 'admin': 'Admin', 'usuario': 'Usuario', 'solo lectura': 'Solo Lectura' };
   document.getElementById('userAvatar').textContent = session.nombre.split(' ').map(n => n[0]).slice(0, 2).join('');
   document.getElementById('userName').textContent   = session.nombre.split(' ').slice(0, 2).join(' ');
-  document.getElementById('userPerfil').textContent = perfLabels[session.perfil] || session.perfil;
+  document.getElementById('userPerfil').textContent = session.perfil;
   if (session.perfil === 'admin') document.getElementById('btnUsuarios').style.display = 'flex';
+  if (session.perfil === 'admin') document.getElementById('btnLog').style.display = 'flex';
 
-  // Role-based UI: Solo Lectura
+  // Ocultar secciones para "solo lectura"
   if (session.perfil === 'solo lectura') {
-    // Ocultar secciones del sidebar
-    document.querySelectorAll('[data-page="nueva"], [data-page="modificar"], [data-page="mis"]').forEach(el => {
-      el.style.display = 'none';
-    });
-    // Ocultar todos los botones "Nueva"
-    document.querySelectorAll('.btn-new-opp').forEach(el => {
-      el.style.display = 'none';
-    });
+    document.getElementById('btnNueva').style.display = 'none';
+    document.getElementById('btnModificar').style.display = 'none';
+    document.getElementById('btnMis').style.display = 'none';
+    document.querySelectorAll('.btn-nueva-oport').forEach(b => b.style.display = 'none');
   }
 
   // Sidebar toggle
@@ -1675,11 +1695,7 @@ function initApp() {
 
   // Connection check
   checkConexion();
-  setInterval(checkConexion, 60000);
-
-  // Check user active status periodically (cada 2 minutos)
-  checkUserActive();
-  setInterval(checkUserActive, 120000);
+  setInterval(checkConexion, 300000); // 5 minutos
 
   // Real-time listener: si cambian datos en Firestore, actualizar
   CRM.onOportunidadesChange((freshData) => {

@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRESALES AR</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-  <link href="assets/style.css?v=13" rel="stylesheet"/>
+  <link href="assets/style.css?v=7" rel="stylesheet"/>
   <!-- External Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
@@ -42,15 +42,12 @@
         <span class="nav-label">Inicio</span>
       </button>
       <div class="nav-section-title">Oportunidades</div>
-      <button class="nav-item" data-page="nueva" data-tooltip="Nueva Oportunidad" onclick="navigate(this)">
+      <button class="nav-item" data-page="nueva" data-tooltip="Nueva Oportunidad" id="btnNueva" onclick="navigate(this)">
         <svg fill="none" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="9" r="7"/><path d="M9 6v6M6 9h6" stroke-linecap="round"/></svg>
         <span class="nav-label">Nueva Oportunidad</span>
       </button>
-      <button class="nav-item" data-page="modificar" data-tooltip="Modificar" onclick="navigate(this)">
-        <svg fill="none" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.8"><path d="M12 2l4 4-9 9H3v-4L12 2z" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span class="nav-label">Modificar Oportunidad</span>
-      </button>
-      <button class="nav-item" data-page="mis" data-tooltip="Mis Oportunidades" onclick="navigate(this)">
+
+      <button class="nav-item" data-page="mis" data-tooltip="Mis Oportunidades" id="btnMis" onclick="navigate(this)">
         <svg fill="none" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="6" r="3"/><path d="M2 16c0-3.9 3.1-7 7-7s7 3.1 7 7" stroke-linecap="round"/><path d="M14 11h2M15 10v2" stroke-linecap="round"/></svg>
         <span class="nav-label">Mis Oportunidades</span>
       </button>
@@ -63,6 +60,10 @@
         <span class="nav-label">Kanban</span>
       </button>
       <div class="nav-section-title">Análisis</div>
+      <button class="nav-item" data-page="calendario" data-tooltip="Calendario" onclick="navigate(this)">
+        <svg fill="none" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="14" height="13" rx="2"/><path d="M2 7h14M6 1v4M12 1v4" stroke-linecap="round"/></svg>
+        <span class="nav-label">Calendario</span>
+      </button>
       <button class="nav-item" data-page="estadisticas" data-tooltip="Estadísticas" onclick="navigate(this)">
         <svg fill="none" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.8"><path d="M2 16V10M6 16V6M10 16V8M14 16V2" stroke-linecap="round"/></svg>
         <span class="nav-label">Estadísticas</span>
@@ -74,8 +75,12 @@
         <svg fill="none" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="6" r="3.5"/><path d="M2 17c0-3.9 3.1-7 7-7s7 3.1 7 7" stroke-linecap="round"/></svg>
         <span class="nav-label">Mi Perfil</span>
       </button>
+      <button class="nav-item" data-page="log" data-tooltip="Log de Eventos" id="btnLog" style="display:none" onclick="navigate(this)">
+        <svg fill="none" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.8"><path d="M9 2v7M5 6l4 3 4-3" stroke-linecap="round" stroke-linejoin="round"/><rect x="2" y="10" width="14" height="6" rx="1.5"/><line x1="5" y1="13" x2="13" y2="13"/></svg>
+        <span class="nav-label">Log de Eventos</span>
+      </button>
       <button class="nav-item" data-page="usuarios" data-tooltip="Administración" id="btnUsuarios" style="display:none" onclick="navigate(this)">
-        <svg fill="none" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.8"><circle cx="7" cy="6" r="3"/><path d="M1 16c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke-linecap="round"/><path d="M14 8v4M16 10h-4" stroke-linecap="round"/></svg>
+        <svg fill="none" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.8"><path d="M7.4 1.2a2.2 2.2 0 0 1 3.2 0l.6.6a1 1 0 0 0 .8.3l.8-.1a2.2 2.2 0 0 1 2.3 2.3l-.1.8a1 1 0 0 0 .3.8l.6.6a2.2 2.2 0 0 1 0 3.2l-.6.6a1 1 0 0 0-.3.8l.1.8a2.2 2.2 0 0 1-2.3 2.3l-.8-.1a1 1 0 0 0-.8.3l-.6.6a2.2 2.2 0 0 1-3.2 0l-.6-.6a1 1 0 0 0-.8-.3l-.8.1a2.2 2.2 0 0 1-2.3-2.3l.1-.8a1 1 0 0 0-.3-.8l-.6-.6a2.2 2.2 0 0 1 0-3.2l.6-.6a1 1 0 0 0 .3-.8l-.1-.8A2.2 2.2 0 0 1 5.8 2.1l.8.1a1 1 0 0 0 .8-.3z"/><circle cx="9" cy="9" r="2.5"/></svg>
         <span class="nav-label">Administración</span>
       </button>
     </nav>
@@ -114,7 +119,7 @@
           <h1 id="heroGreeting"></h1>
           <p class="subtitle">Aquí tenés un resumen de tu pipeline comercial.</p>
           <div class="hero-actions">
-            <button class="btn btn-accent btn-new-opp" onclick="navigate(document.querySelector('[data-page=nueva]'))">+ Nueva Oportunidad</button>
+            <button class="btn btn-accent btn-nueva-oport" onclick="navigate(document.querySelector('[data-page=nueva]'))">+ Nueva Oportunidad</button>
             <button class="btn btn-primary" onclick="downloadExcelAction()">↓ Descargar Excel</button>
           </div>
         </div>
@@ -156,7 +161,7 @@
               <div class="section-title">BID</div>
               <div class="two-col-form" style="margin-bottom:18px">
                 <div class="form-group"><label>Responsable *</label><input type="text" id="n_responsable" required/></div>
-                <div class="form-group"><label>Estado *</label><select id="n_estado" required><option value="">— Seleccionar —</option><option>En Desarrollo</option><option>Entregada</option><option>Finalizada</option><option>Pausa</option><option>Perdida</option><option>Ganada</option><option>Cancelada</option><option>No Go</option></select></div>
+                <div class="form-group"><label>Estado *</label><select id="n_estado" required><option value="">— Seleccionar —</option><option>En Desarrollo</option><option>Entregada</option><option>Finalizada</option><option>Pausa</option><option>No Go</option><option>Cancelada</option><option>Perdida</option><option>Ganada</option></select></div>
               </div>
               <div class="two-col-form" style="margin-bottom:18px">
                 <div class="form-group"><label>Fecha de Inicio *</label><input type="date" id="n_fechaInicio" required/></div>
@@ -189,92 +194,18 @@
         </div>
       </div>
 
-      <!-- ══ MODIFICAR ══ -->
-      <div class="page-section" id="page-modificar">
-        <h1>Modificar Oportunidad</h1>
-        <p class="subtitle">Buscá y editá una oportunidad existente.</p>
-        <div id="modAlert" class="alert"></div>
-        <div id="modSearch">
-          <div class="search-bar"><input type="text" id="modSearchInput" placeholder="Buscar por cliente, nombre o ID..." oninput="doModSearch()"/></div>
-          <div id="modLoadingSearch" class="loading" style="display:none"><div class="spinner"></div> Cargando...</div>
-          <div class="result-list" id="modResultList"></div>
-          <div id="modEmptySearch" class="empty" style="display:none"><div class="empty-icon">🔍</div><div class="empty-text">Sin resultados</div></div>
-        </div>
-        <div id="modEditForm" style="display:none">
-          <div class="page-actions">
-            <div>
-              <div style="font-size:11px;color:var(--text-muted);font-weight:600;letter-spacing:0.05em;text-transform:uppercase">Editando oportunidad</div>
-              <div style="font-size:18px;font-weight:700;margin-top:2px" id="modEditTitle">—</div>
-            </div>
-            <button class="btn btn-ghost" onclick="backToModSearch()">← Volver</button>
-          </div>
-          <div class="card">
-            <form id="modForm" onsubmit="handleUpdate(event)">
-              <input type="hidden" id="e_id"/>
-              <div class="section-block">
-                <div class="section-title">Información General</div>
-                <div class="three-col" style="margin-bottom:18px">
-                  <div class="form-group"><label>Cliente *</label><input type="text" id="e_cliente" required/></div>
-                  <div class="form-group"><label>Industria</label><select id="e_industria"><option value="">— Seleccionar —</option><option>Agroindustria</option><option>Alimenticia</option><option>Automotriz</option><option>eCommerce</option><option>Energía</option><option>Industria/Tecnología</option><option>Medios</option><option>Oil&amp;Gas</option><option>Retail</option><option>Salud</option><option>Sector Público</option><option>Seguros</option><option>Servicios Financieros</option><option>Telecomunicaciones</option><option>Transporte y Logística</option></select></div>
-                  <div class="form-group"><label>Práctica / Área *</label><select id="e_practica" required><option value="">— Seleccionar —</option><option>AM</option><option>CES</option><option>Consultoría</option><option>DWP</option><option>Enablon</option><option>HCI</option><option>IA</option><option>SAP</option><option>Testing</option></select></div>
-                </div>
-                <div class="form-group" style="margin-bottom:18px"><label>Nombre de la Oportunidad *</label><input type="text" id="e_nombre" required/></div>
-                <div class="form-group" style="margin-bottom:18px"><label>Descripción</label><textarea id="e_descripcion"></textarea></div>
-                <div class="form-group"><label>Origen *</label><select id="e_origen" required><option value="">— Seleccionar —</option><option>Fertilización</option><option>Otro</option><option>Proyecto</option><option>Renovación</option><option>RFP</option></select></div>
-              </div>
-              <div class="section-block">
-                <div class="section-title">BID</div>
-                <div class="two-col-form" style="margin-bottom:18px">
-                  <div class="form-group"><label>Responsable *</label><input type="text" id="e_responsable" required/></div>
-                  <div class="form-group"><label>Estado *</label><select id="e_estado" required><option value="">— Seleccionar —</option><option>En Desarrollo</option><option>Entregada</option><option>Finalizada</option><option>Pausa</option><option>Perdida</option><option>Ganada</option><option>Cancelada</option><option>No Go</option></select></div>
-                </div>
-                <div class="two-col-form" style="margin-bottom:18px">
-                  <div class="form-group"><label>Fecha de Inicio *</label><input type="date" id="e_fechaInicio" required/></div>
-                  <div class="form-group"><label>Fecha de Entrega *</label><input type="date" id="e_fechaEntrega" required/></div>
-                </div>
-                <div class="form-group"><label>Notas</label><textarea id="e_notas"></textarea></div>
-              </div>
-              <div class="section-block">
-                <div class="section-title">Datos Comerciales</div>
-                <div class="three-col" style="margin-bottom:18px">
-                  <div class="form-group"><label>TCV</label><input type="number" id="e_tcv" placeholder="0" min="0" oninput="calcFX('e')"/></div>
-                  <div class="form-group"><label>Currency</label><select id="e_currency" onchange="fetchFX('e')"><option value="">— Seleccionar —</option><option>ARS</option><option>CLP</option><option>EUR</option><option>USD</option></select></div>
-                  <div class="form-group"><label>% PM</label><input type="number" id="e_pm" placeholder="0" min="0" max="100" step="0.1"/></div>
-                </div>
-                <div class="two-col-form" style="margin-bottom:18px">
-                  <div class="form-group">
-                    <label>TCV EUR <span id="e_fxBadge" class="fx-badge" style="display:none"></span></label>
-                    <div class="tcv-eur-display"><span id="e_tcvEurValue" class="fx-loading">—</span></div>
-                    <input type="hidden" id="e_tcvEur"/>
-                  </div>
-                  <div class="form-group"><label>Tipo de Cambio</label><input type="number" id="e_tipoCambio" placeholder="—" step="0.0001" oninput="calcFX('e')" readonly style="color:var(--text-muted)"/></div>
-                </div>
-                <div class="form-group" style="max-width:200px"><label>% Probabilidad</label><input type="number" id="e_probabilidad" placeholder="0" min="0" max="100" step="1"/></div>
-              </div>
-              <div style="display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap">
-                <button type="button" class="btn btn-danger" id="e_btnDelete" onclick="handleDelete()">🗑 Eliminar</button>
-                <div style="display:flex;gap:12px">
-                  <button type="button" class="btn btn-ghost" onclick="backToModSearch()">Cancelar</button>
-                  <button type="submit" class="btn btn-primary" id="e_submitBtn">Guardar Cambios →</button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-
       <!-- ══ MIS OPORTUNIDADES ══ -->
       <div class="page-section" id="page-mis">
         <div class="page-actions">
           <div><h1>Mis Oportunidades</h1><p class="subtitle" style="margin-bottom:0" id="misCount">Cargando...</p></div>
           <div style="display:flex;gap:10px">
             <button class="btn btn-ghost" onclick="misRefresh()">↺ Refrescar</button>
-            <button class="btn btn-primary btn-new-opp" onclick="navigate(document.querySelector('[data-page=nueva]'))">+ Nueva</button>
+            <button class="btn btn-primary btn-nueva-oport" onclick="navigate(document.querySelector('[data-page=nueva]'))">+ Nueva</button>
           </div>
         </div>
         <div class="filters">
           <input type="text" id="mis_search" placeholder="Buscar..." oninput="renderMis(1)"/>
-          <select id="mis_estado" onchange="renderMis(1)"><option value="">Todos los estados</option><option>En Desarrollo</option><option>Entregada</option><option>Finalizada</option><option>Pausa</option><option>Perdida</option><option>Ganada</option><option>Cancelada</option><option>No Go</option></select>
+          <select id="mis_estado" onchange="renderMis(1)"><option value="">Todos los estados</option><option>En Desarrollo</option><option>Entregada</option><option>Finalizada</option><option>Pausa</option><option>No Go</option><option>Cancelada</option><option>Perdida</option><option>Ganada</option></select>
         </div>
         <div class="card" style="padding:0">
           <div id="misLoading" class="loading" style="padding:40px 28px"><div class="spinner"></div> Cargando datos...</div>
@@ -303,13 +234,13 @@
           <div><h1>Todas las Oportunidades</h1><p class="subtitle" style="margin-bottom:0" id="todasCount">Cargando...</p></div>
           <div style="display:flex;gap:10px">
             <button class="btn btn-ghost" onclick="downloadExcelAction()">↓ Exportar Excel</button>
-            <button class="btn btn-primary btn-new-opp" onclick="navigate(document.querySelector('[data-page=nueva]'))">+ Nueva</button>
+            <button class="btn btn-primary btn-nueva-oport" onclick="navigate(document.querySelector('[data-page=nueva]'))">+ Nueva</button>
           </div>
         </div>
         <div class="filters">
           <input type="text" id="t_search" placeholder="Buscar..." oninput="renderTabla(1)"/>
           <select id="t_cliente" onchange="renderTabla(1)"><option value="">Todos los clientes</option></select>
-          <select id="t_estado" onchange="renderTabla(1)"><option value="">Todos los estados</option><option>En Desarrollo</option><option>Entregada</option><option>Finalizada</option><option>Pausa</option><option>Perdida</option><option>Ganada</option><option>Cancelada</option><option>No Go</option></select>
+          <select id="t_estado" onchange="renderTabla(1)"><option value="">Todos los estados</option><option>En Desarrollo</option><option>Entregada</option><option>Finalizada</option><option>Pausa</option><option>No Go</option><option>Cancelada</option><option>Perdida</option><option>Ganada</option></select>
           <select id="t_practica" onchange="renderTabla(1)"><option value="">Todas las prácticas</option><option>AM</option><option>CES</option><option>Consultoría</option><option>DWP</option><option>Enablon</option><option>HCI</option><option>IA</option><option>SAP</option><option>Testing</option></select>
           <select id="t_responsable" onchange="renderTabla(1)"><option value="">Todos los responsables</option></select>
         </div>
@@ -319,7 +250,6 @@
             <div class="table-wrap">
               <table>
                 <thead><tr>
-                  <th style="width:40px;text-align:center" id="thSelectAll"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this.checked)" style="cursor:pointer;accent-color:var(--accent)"/></th>
                   <th class="sort-th" onclick="sortTabla('id')">ID</th>
                   <th class="sort-th" onclick="sortTabla('cliente')">Cliente</th>
                   <th class="sort-th" onclick="sortTabla('nombre')">Nombre de la Oportunidad</th>
@@ -334,14 +264,6 @@
             <div id="todasPagination" class="pagination" style="display:none"></div>
           </div>
         </div>
-        <!-- Bulk Action Bar -->
-        <div id="bulkBar" class="bulk-bar" style="display:none">
-          <div class="bulk-bar-info"><span id="bulkCount">0</span> oportunidad<span id="bulkPlural">es</span> seleccionada<span id="bulkPlural2">s</span></div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-danger btn-sm" onclick="openBulkDeleteModal()">🗑 Eliminar</button>
-            <button class="btn btn-ghost btn-sm" onclick="clearBulkSelection()">Cancelar</button>
-          </div>
-        </div>
       </div>
 
       <!-- ══ KANBAN ══ -->
@@ -350,7 +272,7 @@
           <div><h1>Kanban Board</h1><p class="subtitle" style="margin-bottom:0">Mové oportunidades arrastrando las cards entre columnas.</p></div>
           <div style="display:flex;gap:10px">
             <button class="btn btn-ghost" onclick="initKanban()">↺ Refrescar</button>
-            <button class="btn btn-primary btn-new-opp" onclick="navigate(document.querySelector('[data-page=nueva]'))">+ Nueva</button>
+            <button class="btn btn-primary btn-nueva-oport" onclick="navigate(document.querySelector('[data-page=nueva]'))">+ Nueva</button>
           </div>
         </div>
         <div class="filters" id="kanbanFilters">
@@ -359,6 +281,30 @@
         </div>
         <div id="kanbanLoading" class="loading"><div class="spinner"></div> Cargando tablero...</div>
         <div id="kanbanBoard" class="kanban-board" style="display:none"></div>
+      </div>
+
+      <!-- ══ CALENDARIO ══ -->
+      <div class="page-section" id="page-calendario">
+        <div class="calendario-header">
+          <div>
+            <h1>Calendario</h1>
+            <p class="subtitle">Fechas de entrega y seguimiento de oportunidades.</p>
+          </div>
+          <div class="calendario-nav">
+            <button class="btn btn-ghost" id="calPrev" onclick="calNavMonth(-1)">&#8592;</button>
+            <span id="calMonthLabel" style="font-weight:700;font-size:15px;min-width:180px;text-align:center"></span>
+            <button class="btn btn-ghost" id="calNext" onclick="calNavMonth(1)">&#8594;</button>
+            <button class="btn btn-ghost" onclick="calGoToday()">Hoy</button>
+          </div>
+        </div>
+        <div id="calLoading" class="loading"><div class="spinner"></div> Cargando...</div>
+        <div id="calContent" style="display:none">
+          <div class="cal-legend">
+            <div class="cal-legend-item"><span class="cal-legend-dot cal-legend-dot-entrega"></span> Fecha de Entrega</div>
+            <div class="cal-legend-item"><span class="cal-legend-dot cal-legend-dot-inicio"></span> Fecha de Inicio</div>
+          </div>
+          <div class="cal-grid" id="calGrid"></div>
+        </div>
       </div>
 
       <!-- ══ ESTADÍSTICAS ══ -->
@@ -409,6 +355,17 @@
             </form>
           </div>
         </div>
+      </div>
+
+      <!-- ══ LOG DE EVENTOS ══ -->
+      <div class="page-section" id="page-log">
+        <div class="page-actions">
+          <div><h1>Log de Eventos</h1><p class="subtitle" style="margin-bottom:0">Registro de actividad reciente.</p></div>
+          <button class="btn btn-ghost" onclick="initLog()">↺ Refrescar</button>
+        </div>
+        <div id="logLoading" class="loading" style="padding:40px 28px"><div class="spinner"></div> Cargando eventos...</div>
+        <div id="logFeed" style="display:none"></div>
+        <div id="logEmpty" class="empty" style="display:none"><div class="empty-icon">📋</div><div class="empty-text">No hay eventos registrados aún</div></div>
       </div>
 
       <!-- ══ ADMINISTRACIÓN ══ -->
@@ -485,6 +442,71 @@
   </div>
 </div>
 
+<!-- MODAL EDITAR OPORTUNIDAD -->
+<div class="modal-overlay" id="editModalOverlay" onclick="closeEditModal(event)">
+  <div class="modal modal-wide" onclick="event.stopPropagation()">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div>
+        <div style="font-size:11px;color:var(--text-muted);font-weight:600;letter-spacing:0.05em;text-transform:uppercase">Editar Oportunidad</div>
+        <div style="font-size:18px;font-weight:700;margin-top:2px" id="editModalTitle">—</div>
+      </div>
+      <button onclick="closeEditModal()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;padding:4px;line-height:1">✕</button>
+    </div>
+    <div class="edit-modal-scroll">
+      <form id="editForm" onsubmit="handleUpdate(event)">
+        <input type="hidden" id="e_id"/>
+        <div class="section-block">
+          <div class="section-title">Información General</div>
+          <div class="three-col" style="margin-bottom:18px">
+            <div class="form-group"><label>Cliente *</label><input type="text" id="e_cliente" required/></div>
+            <div class="form-group"><label>Industria</label><select id="e_industria"><option value="">— Seleccionar —</option><option>Agroindustria</option><option>Alimenticia</option><option>Automotriz</option><option>eCommerce</option><option>Energía</option><option>Industria/Tecnología</option><option>Medios</option><option>Oil&amp;Gas</option><option>Retail</option><option>Salud</option><option>Sector Público</option><option>Seguros</option><option>Servicios Financieros</option><option>Telecomunicaciones</option><option>Transporte y Logística</option></select></div>
+            <div class="form-group"><label>Práctica / Área *</label><select id="e_practica" required><option value="">— Seleccionar —</option><option>AM</option><option>CES</option><option>Consultoría</option><option>DWP</option><option>Enablon</option><option>HCI</option><option>IA</option><option>SAP</option><option>Testing</option></select></div>
+          </div>
+          <div class="form-group" style="margin-bottom:18px"><label>Nombre de la Oportunidad *</label><input type="text" id="e_nombre" required/></div>
+          <div class="form-group" style="margin-bottom:18px"><label>Descripción</label><textarea id="e_descripcion"></textarea></div>
+          <div class="form-group"><label>Origen *</label><select id="e_origen" required><option value="">— Seleccionar —</option><option>Fertilización</option><option>Otro</option><option>Proyecto</option><option>Renovación</option><option>RFP</option></select></div>
+        </div>
+        <div class="section-block">
+          <div class="section-title">BID</div>
+          <div class="two-col-form" style="margin-bottom:18px">
+            <div class="form-group"><label>Responsable *</label><input type="text" id="e_responsable" required/></div>
+            <div class="form-group"><label>Estado *</label><select id="e_estado" required><option value="">— Seleccionar —</option><option>En Desarrollo</option><option>Entregada</option><option>Finalizada</option><option>Pausa</option><option>No Go</option><option>Cancelada</option><option>Perdida</option><option>Ganada</option></select></div>
+          </div>
+          <div class="two-col-form" style="margin-bottom:18px">
+            <div class="form-group"><label>Fecha de Inicio *</label><input type="date" id="e_fechaInicio" required/></div>
+            <div class="form-group"><label>Fecha de Entrega *</label><input type="date" id="e_fechaEntrega" required/></div>
+          </div>
+          <div class="form-group"><label>Notas</label><textarea id="e_notas"></textarea></div>
+        </div>
+        <div class="section-block">
+          <div class="section-title">Datos Comerciales</div>
+          <div class="three-col" style="margin-bottom:18px">
+            <div class="form-group"><label>TCV</label><input type="number" id="e_tcv" placeholder="0" min="0" oninput="calcFX('e')"/></div>
+            <div class="form-group"><label>Currency</label><select id="e_currency" onchange="fetchFX('e')"><option value="">— Seleccionar —</option><option>ARS</option><option>CLP</option><option>EUR</option><option>USD</option></select></div>
+            <div class="form-group"><label>% PM</label><input type="number" id="e_pm" placeholder="0" min="0" max="100" step="0.1"/></div>
+          </div>
+          <div class="two-col-form" style="margin-bottom:18px">
+            <div class="form-group">
+              <label>TCV EUR <span id="e_fxBadge" class="fx-badge" style="display:none"></span></label>
+              <div class="tcv-eur-display"><span id="e_tcvEurValue" class="fx-loading">—</span></div>
+              <input type="hidden" id="e_tcvEur"/>
+            </div>
+            <div class="form-group"><label>Tipo de Cambio</label><input type="number" id="e_tipoCambio" placeholder="—" step="0.0001" oninput="calcFX('e')" readonly style="color:var(--text-muted)"/></div>
+          </div>
+          <div class="form-group" style="max-width:200px"><label>% Probabilidad</label><input type="number" id="e_probabilidad" placeholder="0" min="0" max="100" step="1"/></div>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap;padding-top:8px">
+          <button type="button" class="btn btn-danger" id="e_btnDelete" onclick="handleDelete()" style="display:none">🗑 Eliminar</button>
+          <div style="display:flex;gap:12px;margin-left:auto">
+            <button type="button" class="btn btn-ghost" onclick="closeEditModal()">Cancelar</button>
+            <button type="submit" class="btn btn-primary" id="e_submitBtn">Guardar Cambios →</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL USUARIOS -->
 <div class="modal-overlay" id="userModalOverlay">
   <div class="modal">
@@ -497,7 +519,7 @@
       <div class="form-grid">
         <div class="form-group full"><label>Nombre *</label><input type="text" id="um_nombre" required/></div>
         <div class="form-group full"><label>Email *</label><input type="email" id="um_email" required/></div>
-        <div class="form-group"><label>Perfil</label><select id="um_perfil"><option value="usuario">Usuario</option><option value="solo lectura">Solo Lectura</option><option value="admin">Admin</option></select></div>
+        <div class="form-group"><label>Perfil</label><select id="um_perfil"><option value="usuario">Usuario</option><option value="admin">Admin</option></select></div>
         <div class="form-group"><label>Activo</label><select id="um_activo"><option value="SI">Sí</option><option value="NO">No</option></select></div>
         <div class="form-group full" id="um_passGroup"><label>Contraseña *</label><input type="password" id="um_pass" placeholder="Mínimo 6 caracteres"/></div>
         <div class="form-group full" id="um_passResetGroup" style="display:none"><label>Nueva Contraseña (vacío = sin cambios)</label><input type="password" id="um_passReset" placeholder="Dejar vacío para mantener"/></div>
@@ -573,30 +595,14 @@
   </div>
 </div>
 
-<!-- BULK DELETE CONFIRM MODAL -->
-<div class="modal-overlay" id="bulkDeleteModal" onclick="closeBulkDeleteModal(event)">
-  <div class="modal-box" style="max-width:420px" onclick="event.stopPropagation()">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-      <h3 style="font-size:16px;font-weight:700">Confirmar Eliminación</h3>
-      <button onclick="closeBulkDeleteModal()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;padding:4px;line-height:1">✕</button>
-    </div>
-    <p style="font-size:14px;color:var(--text);margin-bottom:8px">Estás a punto de eliminar <strong id="bulkDeleteCount">0</strong> oportunidad<span id="bulkDeletePlural">es</span>. Esta acción <strong>no se puede deshacer</strong>.</p>
-    <p style="font-size:13px;color:var(--text-muted);margin-bottom:24px">Los datos serán eliminados permanentemente de la base de datos.</p>
-    <div style="display:flex;gap:10px;justify-content:flex-end">
-      <button class="btn btn-ghost" onclick="closeBulkDeleteModal()">Cancelar</button>
-      <button class="btn btn-danger" id="bulkDeleteConfirmBtn" onclick="executeBulkDelete()">Eliminar</button>
-    </div>
-  </div>
-</div>
-
 <!-- TOASTS -->
 <div id="toastContainer" class="toast-container"></div>
 
 <!-- Firebase Modules -->
 <script src="assets/firebase-config.js"></script>
 <script src="assets/firebase-auth.js"></script>
-<script src="assets/firebase-db.js?v=3"></script>
+<script src="assets/firebase-db.js"></script>
 <script src="assets/theme.js?v=2"></script>
-<script src="assets/app.js?v=8"></script>
+<script src="assets/app.js?v=5"></script>
 </body>
 </html>
