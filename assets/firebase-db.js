@@ -27,8 +27,11 @@ const ESTADO_COLORS = {
 let _cache = null;
 let _cacheTs = 0;
 const CACHE_TTL = 300000; // 5 minutos
+let _listenerActive = false; // true cuando onSnapshot está suscripto
 
 function invalidateCache() {
+  // Si el listener está activo, no invalidar: onSnapshot se encarga de mantener _cache fresco
+  if (_listenerActive) return;
   _cache = null;
   _cacheTs = 0;
 }
@@ -66,6 +69,11 @@ function docToObj(doc) {
 
 // ── GET DATA ──
 async function getData(forceRefresh = false) {
+  // Si el listener onSnapshot está activo, usar siempre la caché (es mantenida en tiempo real)
+  if (!forceRefresh && _listenerActive && _cache) {
+    return _cache;
+  }
+  // Cache TTL normal (para antes de que el listener se active o si se cae)
   if (!forceRefresh && _cache && (Date.now() - _cacheTs) < CACHE_TTL) {
     return _cache;
   }
@@ -188,6 +196,11 @@ async function deleteOportunidad(id) {
 
 // ── GET BY ID ──
 async function getOportunidad(id) {
+  // Primero buscar en caché (evita lectura individual si onSnapshot ya cargó todo)
+  if (_cache) {
+    const cached = _cache.find(r => r.id === id);
+    if (cached) return cached;
+  }
   try {
     const doc = await firebase.firestore().collection(OPORTUNIDADES_COL).doc(id).get();
     if (!doc.exists) return null;
@@ -200,6 +213,7 @@ async function getOportunidad(id) {
 
 // ── REAL-TIME LISTENER ──
 function onOportunidadesChange(callback) {
+  _listenerActive = true;
   return firebase.firestore().collection(OPORTUNIDADES_COL)
     .orderBy('fechaCreacion', 'desc')
     .onSnapshot(snap => {
@@ -208,6 +222,7 @@ function onOportunidadesChange(callback) {
       callback(_cache);
     }, err => {
       console.error('Error en listener de oportunidades:', err);
+      _listenerActive = false; // Desactivar si hay error persistente
     });
 }
 

@@ -356,6 +356,16 @@ function onPageEnter(page) {
   else if (page === 'usuarios')     loadUsuarios();
 }
 
+// Versión silenciosa: sin loaders, usada por el listener onSnapshot
+function onPageEnterSilent(page) {
+  if      (page === 'home')         renderHome();
+  else if (page === 'mis')          initMis(true);
+  else if (page === 'todas')        initTabla(true);
+  else if (page === 'kanban')       initKanban(true);
+  else if (page === 'calendario')   initCalendario(true);
+  else if (page === 'estadisticas') renderStats(true);
+}
+
 // ══════════════════════════════════════════════
 // STATUS CHECK
 // ══════════════════════════════════════════════
@@ -825,12 +835,16 @@ async function bulkDeleteTodas() {
   await refreshCurrentPage();
 }
 
-async function initTabla() {
-  document.getElementById('todasLoading').style.display = 'flex';
-  document.getElementById('todasTable').style.display = 'none';
+async function initTabla(silent = false) {
+  if (!silent) {
+    document.getElementById('todasLoading').style.display = 'flex';
+    document.getElementById('todasTable').style.display = 'none';
+  }
   _tablaRows = await CRM.getData();
-  document.getElementById('todasLoading').style.display = 'none';
-  document.getElementById('todasTable').style.display = 'block';
+  if (!silent) {
+    document.getElementById('todasLoading').style.display = 'none';
+    document.getElementById('todasTable').style.display = 'block';
+  }
 
   // Show/hide bulk checkbox column for admin
   document.getElementById('todasCheckHead').style.display = isAdmin() ? '' : 'none';
@@ -1046,12 +1060,16 @@ let _calYear, _calMonth, _calRows = [];
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DIAS_SEMANA = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
 
-async function initCalendario() {
-  document.getElementById('calLoading').style.display = 'flex';
-  document.getElementById('calContent').style.display = 'none';
+async function initCalendario(silent = false) {
+  if (!silent) {
+    document.getElementById('calLoading').style.display = 'flex';
+    document.getElementById('calContent').style.display = 'none';
+  }
   _calRows = await CRM.getData();
-  document.getElementById('calLoading').style.display = 'none';
-  document.getElementById('calContent').style.display = 'block';
+  if (!silent) {
+    document.getElementById('calLoading').style.display = 'none';
+    document.getElementById('calContent').style.display = 'block';
+  }
   if (_calYear === undefined) {
     const now = new Date();
     _calYear = now.getFullYear();
@@ -1165,14 +1183,18 @@ function renderCalendario() {
 // ══════════════════════════════════════════════
 let _statsCharts = {};
 
-async function renderStats() {
-  document.getElementById('statsLoading').style.display = 'flex';
-  document.getElementById('statsContent').style.display = 'none';
+async function renderStats(silent = false) {
+  if (!silent) {
+    document.getElementById('statsLoading').style.display = 'flex';
+    document.getElementById('statsContent').style.display = 'none';
+  }
   Object.values(_statsCharts).forEach(c => { try { c.destroy(); } catch(e) {} });
   _statsCharts = {};
   const rows = await CRM.getData();
-  document.getElementById('statsLoading').style.display = 'none';
-  document.getElementById('statsContent').style.display = 'block';
+  if (!silent) {
+    document.getElementById('statsLoading').style.display = 'none';
+    document.getElementById('statsContent').style.display = 'block';
+  }
 
   const totalTCV = rows.reduce((s, r) => s + (parseFloat(r.tcvEur) || 0), 0);
   const probProm = rows.length > 0 ? Math.round(rows.reduce((s, r) => s + (parseFloat(r.probabilidad) || 0), 0) / rows.length) : 0;
@@ -1743,11 +1765,13 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('.kanban-col-filter')) closeAllDropdowns();
 });
 
-async function initKanban() {
+async function initKanban(silent = false) {
   const loading = document.getElementById('kanbanLoading');
   const board = document.getElementById('kanbanBoard');
-  loading.style.display = 'flex';
-  board.style.display = 'none';
+  if (!silent) {
+    loading.style.display = 'flex';
+    board.style.display = 'none';
+  }
 
   loadKanbanColFilter();
   buildColFilterDropdown();
@@ -1769,8 +1793,10 @@ async function initKanban() {
     selR.style.display = 'none';
   }
 
-  loading.style.display = 'none';
-  board.style.display = 'flex';
+  if (!silent) {
+    loading.style.display = 'none';
+    board.style.display = 'flex';
+  }
   renderKanban();
 }
 
@@ -1976,14 +2002,18 @@ async function bulkDeleteMis() {
   await refreshCurrentPage();
 }
 
-async function initMis() {
-  document.getElementById('misLoading').style.display = 'flex';
-  document.getElementById('misTable').style.display = 'none';
+async function initMis(silent = false) {
+  if (!silent) {
+    document.getElementById('misLoading').style.display = 'flex';
+    document.getElementById('misTable').style.display = 'none';
+  }
   const session = AUTH.getSession();
   const raw = await CRM.getData();
   _misRows = raw.filter(r => r.responsable === session.nombre);
-  document.getElementById('misLoading').style.display = 'none';
-  document.getElementById('misTable').style.display = 'block';
+  if (!silent) {
+    document.getElementById('misLoading').style.display = 'none';
+    document.getElementById('misTable').style.display = 'block';
+  }
 
   // Show/hide bulk checkbox column for admin
   document.getElementById('misCheckHead').style.display = isAdmin() ? '' : 'none';
@@ -2163,9 +2193,9 @@ function initApp() {
     const activeSection = document.querySelector('.page-section.active');
     if (activeSection) {
       const page = activeSection.id.replace('page-', '');
-      // Re-render solo si estamos en una seccion de datos
-      if (['home', 'mis', 'todas', 'estadisticas'].includes(page)) {
-        onPageEnter(page);
+      // Re-render la seccion activa con datos actualizados (silent = sin loaders)
+      if (['home', 'mis', 'todas', 'kanban', 'calendario', 'estadisticas'].includes(page)) {
+        onPageEnterSilent(page);
       }
     }
   });
