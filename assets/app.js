@@ -1022,7 +1022,9 @@ async function verOportunidad(id) {
       <div class="timeline">${timelineHTML}</div>`;
   } catch(e) {
     const container = document.getElementById('verHistorialContainer');
-    if (container) container.innerHTML = '';
+    if (container) container.innerHTML = `
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)">Historial de Actividad</div>
+      <div style="text-align:center;padding:16px 0;color:#ef4444;font-size:12px;font-style:italic">Error al cargar el historial.</div>`;
     console.error('Error cargando historial:', e);
   }
 }

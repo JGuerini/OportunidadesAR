@@ -297,10 +297,13 @@ async function getLogByOppId(oppId, limit = 50) {
   try {
     const snap = await firebase.firestore().collection('log_eventos')
       .where('oppId', '==', oppId)
-      .orderBy('fecha', 'desc')
       .limit(limit)
       .get();
-    return snap.docs.map(d => d.data());
+    // Ordenar por fecha descendente en cliente (evita necesidad de índice compuesto en Firestore)
+    return snap.docs.map(d => d.data()).sort((a, b) => {
+      const fa = a.fecha || '', fb = b.fecha || '';
+      return fb.localeCompare(fa);
+    });
   } catch(e) {
     console.error('Error obteniendo log de la oportunidad:', e);
     return [];
