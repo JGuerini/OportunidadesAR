@@ -198,6 +198,25 @@ function fmtEUR(n) {
   return '€' + Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
+function fmtFechaRelativa(fechaISO) {
+  if (!fechaISO) return '';
+  const ahora = new Date();
+  const fecha = new Date(fechaISO);
+  if (isNaN(fecha.getTime())) return '';
+  const diffMs = ahora - fecha;
+  const diffSeg = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSeg / 60);
+  const diffHor = Math.floor(diffMin / 60);
+  const diffDias = Math.floor(diffHor / 24);
+  if (diffSeg < 60) return 'hace un momento';
+  if (diffMin < 60) return 'hace ' + diffMin + ' min';
+  if (diffHor < 24) return 'hace ' + diffHor + 'h';
+  if (diffDias === 1) return 'ayer';
+  if (diffDias < 7) return 'hace ' + diffDias + ' dias';
+  if (diffDias < 30) return 'hace ' + Math.floor(diffDias / 7) + ' sem';
+  return fmtFecha(fechaISO);
+}
+
 function friendlyId(r) {
   return r.codigo || r.id.substring(0, 8);
 }
@@ -896,8 +915,9 @@ function editFromTabla(id) {
   openEditModal(id);
 }
 
-function verOportunidad(id) {
-  let r = _tablaRows.find(x => x.id === id) || _kanbanRows.find(x => x.id === id) || _calRows.find(x => x.id === id);
+async function verOportunidad(id) {
+  let r = _tablaRows.find(x => x.id === id) || _kanbanRows.find(x => x.id === id) || _calRows.find(x => x.id === id) || _misRows.find(x => x.id === id);
+  if (!r) r = await CRM.getOportunidad(id);
   if (!r) return;
 
   document.getElementById('verModalId').textContent = friendlyId(r);
@@ -943,9 +963,7 @@ function verOportunidad(id) {
     },
   ];
 
-  // Nota: SharePoint ya se incluyó en Datos Comerciales arriba
-
-  document.getElementById('verModalContent').innerHTML = sections.map(s => `
+  let html = sections.map(s => `
     <div style="margin-bottom:20px">
       <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)">${s.title}</div>
       ${s.rows.filter(([, v]) => v && v !== '—').map(([label, val]) => `
@@ -955,7 +973,58 @@ function verOportunidad(id) {
         </div>`).join('')}
     </div>`).join('');
 
+  // Placeholder para el historial (se llena async)
+  html += '<div id="verHistorialContainer" style="margin-bottom:20px"><div style="display:flex;align-items:center;gap:8px;padding:12px 0;color:var(--text-muted);font-size:12px"><span class="spinner" style="width:14px;height:14px;border-width:2px"></span>Cargando historial...</div></div>';
+
+  document.getElementById('verModalContent').innerHTML = html;
   document.getElementById('verModalOverlay').classList.add('open');
+
+  // Cargar historial de forma async
+  try {
+    const logs = await CRM.getLogByOppId(id);
+    const container = document.getElementById('verHistorialContainer');
+    if (!container) return;
+
+    if (logs.length === 0) {
+      container.innerHTML = `
+        <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)">Historial de Actividad</div>
+        <div style="text-align:center;padding:16px 0;color:var(--text-muted);font-size:12px;font-style:italic">Sin registros de actividad</div>`;
+      return;
+    }
+
+    const accionConfig = {
+      creacion:     { label: 'Creación',     color: '#22c55e', icon: '+' },
+      edicion:      { label: 'Edición',      color: '#3b82f6', icon: '~' },
+      cambio_estado:{ label: 'Cambio Estado', color: '#f59e0b', icon: '↕' },
+      eliminacion:  { label: 'Eliminación',  color: '#ef4444', icon: '×' }
+    };
+
+    const timelineHTML = logs.map((log, i) => {
+      const cfg = accionConfig[log.accion] || accionConfig.edicion;
+      const isLast = i === logs.length - 1;
+      return `
+        <div class="timeline-item">
+          <div class="timeline-line${isLast ? ' timeline-line-last' : ''}"></div>
+          <div class="timeline-dot" style="background:${cfg.color};box-shadow:0 0 0 3px color-mix(in srgb, ${cfg.color} 20%, transparent)"></div>
+          <div class="timeline-content">
+            <div class="timeline-header">
+              <span class="timeline-badge" style="background:${cfg.color}">${cfg.icon} ${escapeHtml(cfg.label)}</span>
+              <span class="timeline-date">${fmtFechaRelativa(log.fecha)}</span>
+            </div>
+            <div class="timeline-detail">${escapeHtml(log.detalle)}</div>
+            ${log.usuario ? `<div class="timeline-user">${escapeHtml(log.usuario)}</div>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+
+    container.innerHTML = `
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)">Historial de Actividad</div>
+      <div class="timeline">${timelineHTML}</div>`;
+  } catch(e) {
+    const container = document.getElementById('verHistorialContainer');
+    if (container) container.innerHTML = '';
+    console.error('Error cargando historial:', e);
+  }
 }
 
 function closeVerModal(event) {

@@ -293,6 +293,20 @@ async function logEvento(accion, detalle, oppId, oppCodigo, oppNombre) {
   }
 }
 
+async function getLogByOppId(oppId, limit = 50) {
+  try {
+    const snap = await firebase.firestore().collection('log_eventos')
+      .where('oppId', '==', oppId)
+      .orderBy('fecha', 'desc')
+      .limit(limit)
+      .get();
+    return snap.docs.map(d => d.data());
+  } catch(e) {
+    console.error('Error obteniendo log de la oportunidad:', e);
+    return [];
+  }
+}
+
 async function getLogEventos(limit = 100) {
   try {
     const snap = await firebase.firestore().collection('log_eventos')
@@ -309,6 +323,6 @@ async function getLogEventos(limit = 100) {
 window.CRM = {
   getData, addOportunidad, updateOportunidad, deleteOportunidad,
   getOportunidad, downloadExcel, onOportunidadesChange, getNextCodigo,
-  logEvento, getLogEventos,
+  logEvento, getLogEventos, getLogByOppId,
   COLUMNS, ESTADOS, ORIGENES, ESTADO_COLORS, invalidateCache
 };
