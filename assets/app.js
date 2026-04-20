@@ -354,6 +354,53 @@ const _fxRates = {};
 const _fxCache = {};       // Cache por moneda: { ARS: { rate, ts }, USD: { rate, ts } }
 const _FX_CACHE_TTL = 30 * 60 * 1000; // 30 minutos
 
+// Obtiene tipo de cambio (reutilizable, sin depender del DOM)
+async function getFXRate(currency) {
+  if (!currency || currency === 'EUR') return 1;
+  const cached = _fxCache[currency];
+  if (cached && (Date.now() - cached.ts < _FX_CACHE_TTL)) return cached.rate;
+  try {
+    const res  = await fetch(`https://api.exchangerate-api.com/v4/latest/${currency}`);
+    const data = await res.json();
+    const rate = data.rates['EUR'];
+    _fxCache[currency] = { rate, ts: Date.now() };
+    return rate;
+  } catch(e) {
+    console.warn(`Error obteniendo FX para ${currency}:`, e);
+    return null;
+  }
+}
+
+// Parsea un número en formato argentino (1.234.567,89) o estándar (1234567.89)
+// Soporta símbolo % al final (se ignora)
+function parseLocalizedNumber(val) {
+  if (val === undefined || val === null || val === '') return NaN;
+  let s = String(val).trim();
+  // Quitar símbolo % si el usuario lo escribió
+  if (s.endsWith('%')) s = s.slice(0, -1).trim();
+  if (s === '') return NaN;
+
+  const dotCount   = (s.match(/\./g) || []).length;
+  const commaCount = (s.match(/,/g) || []).length;
+
+  // Sin separadores: número plano "1500000"
+  if (dotCount === 0 && commaCount === 0) return Number(s);
+
+  // Un solo punto sin comas: decimal estándar "1.5"
+  if (dotCount === 1 && commaCount === 0) return Number(s);
+
+  // Formato argentino (puntos=miles, coma=decimal):
+  //   "1.500.000"      → 1500000
+  //   "1.500.000,89"   → 1500000.89
+  //   "1500,50"        → 1500.50
+  if (dotCount > 1 || commaCount > 0) {
+    return Number(s.replace(/\./g, '').replace(',', '.'));
+  }
+
+  // Fallback: formato US (comas=miles, punto=decimal)
+  return Number(s.replace(/,/g, ''));
+}
+
 async function fetchFX(prefix) {
   const currency = document.getElementById(`${prefix}_currency`).value;
   if (!currency || currency === 'EUR') {
@@ -364,7 +411,7 @@ async function fetchFX(prefix) {
     return;
   }
 
-  // Verificar cache por moneda
+  // Verificar cache por moneda (usar getFXRate para reutilizar)
   const cached = _fxCache[currency];
   if (cached && (Date.now() - cached.ts < _FX_CACHE_TTL)) {
     _fxRates[prefix] = cached.rate;
@@ -376,39 +423,44 @@ async function fetchFX(prefix) {
     return;
   }
 
-  document.getElementById(`${prefix}_tcvEurValue`).className = 'fx-loading';
-  document.getElementById(`${prefix}_tcvEurValue`).textContent = 'Obteniendo tipo de cambio...';
+  const eurDisplay = document.getElementById(`${prefix}_tcvEurValue`);
+  const eurContainer = eurDisplay ? eurDisplay.parentElement : null;
+  eurDisplay.className = 'fx-loading';
+  eurDisplay.textContent = 'Obteniendo tipo de cambio...';
+  if (eurContainer) eurContainer.style.borderColor = 'var(--border)';
   document.getElementById(`${prefix}_fxBadge`).style.display = 'none';
   try {
-    const res  = await fetch(`https://api.exchangerate-api.com/v4/latest/${currency}`);
-    const data = await res.json();
-    const rate = data.rates['EUR'];
-    _fxRates[prefix] = rate;
-    // Guardar en cache por moneda
-    _fxCache[currency] = { rate, ts: Date.now() };
-    document.getElementById(`${prefix}_tipoCambio`).value = rate.toFixed(6);
-    const badge = document.getElementById(`${prefix}_fxBadge`);
-    badge.style.display = 'inline-flex';
-    badge.textContent = `1 ${currency} = ${rate.toFixed(4)} EUR`;
-    calcFX(prefix);
+    const rate = await getFXRate(currency);
+    if (rate) {
+      _fxRates[prefix] = rate;
+      document.getElementById(`${prefix}_tipoCambio`).value = rate.toFixed(6);
+      const badge = document.getElementById(`${prefix}_fxBadge`);
+      badge.style.display = 'inline-flex';
+      badge.textContent = `1 ${currency} = ${rate.toFixed(4)} EUR`;
+      calcFX(prefix);
+    } else {
+      eurDisplay.textContent = 'Error al obtener tipo de cambio';
+    }
   } catch(e) {
-    document.getElementById(`${prefix}_tcvEurValue`).textContent = 'Error al obtener tipo de cambio';
+    eurDisplay.textContent = 'Error al obtener tipo de cambio';
   }
 }
 
 function calcFX(prefix) {
-  const tcv      = parseFloat(document.getElementById(`${prefix}_tcv`).value) || 0;
+  const tcv      = parseLocalizedNumber(document.getElementById(`${prefix}_tcv`).value) || 0;
   const fx       = parseFloat(document.getElementById(`${prefix}_tipoCambio`).value) || _fxRates[prefix];
   const currency = document.getElementById(`${prefix}_currency`).value;
   const display  = document.getElementById(`${prefix}_tcvEurValue`);
-  if (!currency) { display.className = 'fx-loading'; display.textContent = 'Seleccioná moneda y TCV'; document.getElementById(`${prefix}_tcvEur`).value = ''; return; }
-  if (!fx)       { display.className = 'fx-loading'; display.textContent = 'Obteniendo tipo de cambio...'; return; }
-  if (!tcv)      { display.className = 'fx-loading'; display.textContent = 'Ingresá el TCV'; document.getElementById(`${prefix}_tcvEur`).value = ''; return; }
+  const eurContainer = display ? display.parentElement : null;
+  if (!currency) { display.className = 'fx-loading'; display.textContent = 'Seleccioná moneda y TCV'; if (eurContainer) eurContainer.style.borderColor = 'var(--border)'; document.getElementById(`${prefix}_tcvEur`).value = ''; return; }
+  if (!fx)       { display.className = 'fx-loading'; display.textContent = 'Obteniendo tipo de cambio...'; if (eurContainer) eurContainer.style.borderColor = 'var(--border)'; return; }
+  if (!tcv)      { display.className = 'fx-loading'; display.textContent = 'Ingresá el TCV'; if (eurContainer) eurContainer.style.borderColor = 'var(--border)'; document.getElementById(`${prefix}_tcvEur`).value = ''; return; }
   const eur = tcv * fx;
   display.className = '';
   display.style.color = 'var(--text)';
   display.textContent = '€ ' + eur.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   document.getElementById(`${prefix}_tcvEur`).value = eur.toFixed(2);
+  if (eurContainer) eurContainer.style.borderColor = 'var(--accent)';
 }
 
 // ══════════════════════════════════════════════
@@ -432,12 +484,12 @@ async function handleNueva(e) {
       fechaInicio:  document.getElementById('n_fechaInicio').value,
       fechaEntrega: document.getElementById('n_fechaEntrega').value,
       notas:        document.getElementById('n_notas').value,
-      tcv:          document.getElementById('n_tcv').value || '0',
+      tcv:          parseLocalizedNumber(document.getElementById('n_tcv').value) || 0,
       currency:     document.getElementById('n_currency').value,
       tcvEur:       document.getElementById('n_tcvEur').value || '0',
       tipoCambio:   document.getElementById('n_tipoCambio').value || '',
-      probabilidad: document.getElementById('n_probabilidad').value || '',
-      pm:           document.getElementById('n_pm').value || ''
+      probabilidad: parseLocalizedNumber(document.getElementById('n_probabilidad').value) || 0,
+      pm:           parseLocalizedNumber(document.getElementById('n_pm').value) || 0
     });
     CRM.logEvento('creacion', 'Creó la oportunidad', id, '', document.getElementById('n_nombre').value);
     TOAST.success('Oportunidad guardada exitosamente.');
@@ -494,28 +546,45 @@ async function openEditModal(id) {
   document.getElementById('e_tcv').value          = r.tcv || '';
   document.getElementById('e_currency').value     = r.currency || '';
   document.getElementById('e_pm').value           = r.pm || '';
-  document.getElementById('e_tipoCambio').value   = r.tipoCambio || '';
-  document.getElementById('e_tcvEur').value       = r.tcvEur || '';
   document.getElementById('e_probabilidad').value = r.probabilidad || '';
-  _fxRates['e'] = parseFloat(r.tipoCambio) || null;
 
-  const eur = parseFloat(r.tcvEur);
+  // Manejar tipoCambio y tcvEur: 0 significa "nunca calculado", no "cero"
+  const savedRate = (r.tipoCambio && r.tipoCambio !== 0) ? parseFloat(r.tipoCambio) : null;
+  const savedEur  = (r.tcvEur && r.tcvEur !== 0) ? parseFloat(r.tcvEur) : 0;
+  document.getElementById('e_tipoCambio').value = savedRate ? savedRate.toFixed(6) : '';
+  document.getElementById('e_tcvEur').value     = savedEur ? savedEur.toFixed(2) : '';
+  _fxRates['e'] = savedRate;
+
   const tv = document.getElementById('e_tcvEurValue');
-  if (eur) { tv.className = ''; tv.textContent = '€ ' + eur.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-  else { tv.className = 'fx-loading'; tv.textContent = '—'; }
+  const eurContainer = tv ? tv.parentElement : null;
+  if (savedEur) {
+    tv.className = '';
+    tv.textContent = '€ ' + savedEur.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (eurContainer) eurContainer.style.borderColor = 'var(--accent)';
+  } else {
+    tv.className = 'fx-loading';
+    tv.textContent = '—';
+    if (eurContainer) eurContainer.style.borderColor = 'var(--border)';
+  }
 
   const badge = document.getElementById('e_fxBadge');
-  if (r.tipoCambio && r.currency) {
+  if (savedRate && r.currency) {
     badge.style.display = 'inline-flex';
-    badge.textContent = `1 ${r.currency} = ${parseFloat(r.tipoCambio).toFixed(4)} EUR`;
+    badge.textContent = `1 ${r.currency} = ${savedRate.toFixed(4)} EUR`;
   } else {
     badge.style.display = 'none';
   }
+
   document.getElementById('e_btnDelete').style.display = session && session.perfil === 'admin' ? '' : 'none';
   if (session && session.perfil !== 'admin') document.getElementById('e_responsable').readOnly = true;
   else document.getElementById('e_responsable').readOnly = false;
 
   document.getElementById('editModalOverlay').classList.add('open');
+
+  // Si tiene currency pero no tiene tipo de cambio, buscarlo automáticamente
+  if (r.currency && r.currency !== 'EUR' && !savedRate) {
+    fetchFX('e');
+  }
 }
 
 function closeEditModal(event) {
@@ -549,12 +618,12 @@ async function handleUpdate(e) {
       fechaInicio:  document.getElementById('e_fechaInicio').value,
       fechaEntrega: document.getElementById('e_fechaEntrega').value,
       notas:        document.getElementById('e_notas').value,
-      tcv:          document.getElementById('e_tcv').value || '0',
+      tcv:          parseLocalizedNumber(document.getElementById('e_tcv').value) || 0,
       currency:     document.getElementById('e_currency').value,
       tcvEur:       document.getElementById('e_tcvEur').value || '0',
       tipoCambio:   document.getElementById('e_tipoCambio').value || '',
-      probabilidad: document.getElementById('e_probabilidad').value || '',
-      pm:           document.getElementById('e_pm').value || ''
+      probabilidad: parseLocalizedNumber(document.getElementById('e_probabilidad').value) || 0,
+      pm:           parseLocalizedNumber(document.getElementById('e_pm').value) || 0
     });
 
     // Log del evento
@@ -1324,6 +1393,28 @@ async function executeImport() {
       errors.push(`Fila ${i + 2}: estado "${data.estado}" no válido`);
       updateImportProgress(i + 1, total);
       continue;
+    }
+
+    // Parsear campos numéricos con soporte de formato argentino
+    const tcvVal = parseLocalizedNumber(data.tcv);
+    if (!isNaN(tcvVal)) data.tcv = tcvVal;
+    else data.tcv = 0;
+
+    const probVal = parseLocalizedNumber(data.probabilidad);
+    if (!isNaN(probVal)) data.probabilidad = probVal;
+    else data.probabilidad = 0;
+
+    const pmVal = parseLocalizedNumber(data.pm);
+    if (!isNaN(pmVal)) data.pm = pmVal;
+    else data.pm = 0;
+
+    // Calcular TCV EUR si no viene en el Excel pero hay TCV y currency
+    if ((!data.tcvEur || parseFloat(data.tcvEur) === 0) && data.tcv > 0 && data.currency) {
+      const rate = await getFXRate(data.currency);
+      if (rate) {
+        data.tcvEur = parseFloat((data.tcv * rate).toFixed(2));
+        data.tipoCambio = parseFloat(rate.toFixed(6));
+      }
     }
 
     try {
