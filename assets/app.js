@@ -2285,8 +2285,8 @@ document.addEventListener('keydown', function(e) {
   // Los siguientes atajos no se activan si el foco está en un input/textarea
   if (isInput) return;
 
-  // ── Ctrl+N: nueva oportunidad ──
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+  // ── Alt+N: nueva oportunidad ──
+  if (e.altKey && e.key === 'n') {
     e.preventDefault();
     const btnNueva = document.getElementById('btnNueva');
     if (btnNueva && btnNueva.style.display !== 'none') {
