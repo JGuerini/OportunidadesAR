@@ -1,47 +1,133 @@
+<div align="center">
+
+<img src="favicon.svg" width="48" alt="PRESALES AR Logo"/>
+
 # PRESALES AR
 
-<p align="center">
-  <strong>CRM de Oportunidades Comerciales</strong><br>
-  Gestión de pipeline, seguimiento y análisis para equipos de presales.
-</p>
+**CRM de Oportunidades Comerciales para equipos de Presales**
+
+Gestión integral de pipeline comercial con seguimiento en tiempo real, análisis avanzado y colaboración entre equipos.
+
+[![Deploy](https://img.shields.io/badge/Deploy-GitHub%20Pages-black?style=flat-square&logo=github)](https://pages.github.com/)
+[![Firebase](https://img.shields.io/badge/Firebase-Auth%20%2B%20Firestore-orange?style=flat-square&logo=firebase)](https://firebase.google.com/)
+[![License](https://img.shields.io/badge/License-Uso%20Interno-blue?style=flat-square)]()
+
+</div>
 
 ---
 
-## Características
+## Capturas
 
-- **Dashboard interactivo** con KPIs, pipeline por estado y gráficos de distribución
-- **Gestión de oportunidades** con campos completos (cliente, industria, práctica, TCV, probabilidad, PM)
-- **Edición inline** — editar oportunidades desde un modal sin abandonar la pantalla actual
-- **Tablero Kanban** con drag & drop para mover oportunidades entre estados
-- **Vista Calendario** — calendario mensual con fechas de entrega e inicio por oportunidad
-- **Log de Eventos** — registro de actividad (creación, edición, cambio de estado, eliminación)
-- **Estadísticas avanzadas** — gráficos por estado, origen, responsable, práctica e industria
-- **Roles y permisos** granulares (admin, usuario, solo lectura)
-- **Carga masiva** desde Excel (importar oportunidades por lotes)
-- **Exportación a Excel** de las oportunidades filtradas
-- **Modo claro/oscuro** con persistencia por usuario
-- **Diseño glassmorphism** responsive
-- **Notificaciones toast** — feedback visual en tiempo real sobre acciones
-- **Offline-first** con persistencia de Firestore
-- **Tiempo real** — cambios se sincronizan automáticamente entre pestañas
+| Dashboard | Kanban Board | Estadísticas |
+|:---:|:---:|:---:|
+| KPIs en tiempo real, pipeline visual y últimas oportunidades | Drag & drop entre columnas de estado | Gráficos interactivos con Chart.js |
+
+---
+
+## Funcionalidades
+
+### Gestión de Oportunidades
+
+- **Alta de oportunidades** — Formulario completo con información general, BID y datos comerciales
+- **Edición por modal** — Editar cualquier oportunidad sin abandonar la pantalla actual
+- **Vista detallada** — Modal de solo lectura con toda la info organizada por secciones
+- **Eliminación individual o masiva** — Con confirmación y log de eventos
+- **Código secuencial automático** — Cada oportunidad recibe un ID `OPP-XXXX` incremental
+- **Campos disponibles:** Cliente, Industria, Práctica/Área, Nombre, Descripción, Origen, Responsable, Estado, Fechas de Inicio/Entrega, Notas, SharePoint (URL), TCV, Currency, TCV EUR, Tipo de Cambio, Probabilidad, PM
+
+### Tablas con Interactividad
+
+- **Mis Oportunidades** — Vista filtrada por responsable (solo las del usuario logueado)
+- **Ver Todas** — Listado completo de todas las oportunidades del sistema
+- **Ordenamiento por columna** — Click en encabezados para ordenar ascendente/descendente
+- **Búsqueda en tiempo real** — Filtro por texto libre
+- **Filtros múltiples** — Por estado, cliente, práctica y responsable
+- **Paginación** — 20 registros por página con navegación completa
+- **Selección masiva (admin)** — Checkboxes para seleccionar y eliminar múltiples registros
+- **Tooltips informativos** — Hover sobre nombre muestra *notas*, hover sobre estado muestra *fecha de entrega*
+- **Click para ver detalle** — Click en cualquier fila abre el modal de vista
+
+### Kanban Board
+
+- **Tablero visual por estados** — Columnas dinámicas: En Desarrollo, Entregada, Finalizada, Pausa, No Go, Cancelada, Perdida, Ganada
+- **Drag & drop** — Mover cards entre columnas para cambiar el estado de una oportunidad
+- **Actualización optimista** — La UI responde al instante y se sincroniza con Firestore en background
+- **Filtro de columnas** — Mostrar/ocultar columnas individuales (persistencia en localStorage)
+- **Búsqueda y filtro por responsable** — Encontrar oportunidades rápidamente en el tablero
+- **Click en card** — Ver detalle completo de la oportunidad
+
+### Calendario
+
+- **Vista mensual** — Calendario con navegación mes a mes y botón "Hoy"
+- **Eventos de entrega** — Marcados con color del estado de la oportunidad
+- **Eventos de inicio** — Diferenciados visualmente de los de entrega
+- **Click en evento** — Abre el modal de detalle de la oportunidad
+- **Resaltado del día actual** — Indicador visual del día de hoy
+
+### Estadísticas
+
+- **KPIs principales** — Total de oportunidades, TCV EUR total, En Desarrollo, Probabilidad promedio
+- **Distribución por estado** — Gráfico doughnut con cantidades
+- **TCV EUR por estado** — Gráfico de barras con valores en euros
+- **Pipeline por estado** — Funnel chart horizontal con barras proporcionales
+- **Origen de oportunidades** — Gráfico pie (Fertilización, Proyecto, RFP, Renovación, Otro)
+- **Por responsable** — Gráfico de barras horizontales (top 8)
+- **Por práctica/área** — Gráfico de barras horizontales (AM, CES, IA, SAP, etc.)
+- **Por industria** — Gráfico pie con 15 industrias
+
+### Administración (solo Admin)
+
+- **Gestión de usuarios** — Crear, editar, activar/desactivar cuentas
+- **Carga masiva desde Excel** — Importar oportunidades por lotes con preview, validación y barra de progreso
+- **Plantilla descargable** — Excel template con las columnas esperadas
+- **Soporte multi-formato** — `.xlsx`, `.xls` y `.csv`
+- **Conversión FX automática** — Durante la importación, calcula TCV EUR si se provee TCV + Currency
+- **Log de eventos** — Registro completo de actividad (creación, edición, cambio de estado, eliminación)
+
+### Datos Comerciales y FX
+
+- **TCV en múltiples monedas** — ARS, CLP, EUR, USD
+- **Conversión automática a EUR** — Tipo de cambio obtenido desde API en tiempo real
+- **Cache de tasas** — 30 minutos de cache por moneda para evitar llamadas innecesarias
+- **Formato argentino** — Soporte para ingreso de números con formato local (puntos como miles, coma como decimal)
+
+### UX y Diseño
+
+- **Glassmorphism** — Diseño moderno con glassmorphism, degradados y floating blobs
+- **Modo claro/oscuro** — Toggle con persistencia por usuario en localStorage
+- **Sidebar colapsable** — Navegación compacta con tooltips en modo colapsado
+- **Notificaciones toast** — Feedback visual inmediato para cada acción (success, error, warning, info)
+- **Skeleton loading** — Estados de carga con animación shimmer
+- **Indicador de conexión** — Status dot en tiempo real (conectado, sincronizando, sin conexión)
+- **Responsive** — Adaptable a diferentes tamaños de pantalla
+
+### Perfil de Usuario
+
+- **Información de cuenta** — Nombre, email, perfil y estado
+- **Cambio de contraseña** — Formulario seguro con validación
+- **Selector de tema** — Toggle claro/oscuro accesible desde el perfil
+
+---
 
 ## Estados de Oportunidad
 
-| Estado | Descripción |
-|---|---|
-| En Desarrollo | Oportunidad en etapa inicial |
-| Entregada | Propuesta enviada al cliente |
-| Finalizada | Cerrada exitosamente |
-| Pausa | Temporalmente detenida |
-| No Go | Descartada por el equipo |
-| Cancelada | Cancelada por el cliente |
-| Perdida | No ganada |
-| Ganada | Cerrada y ganada |
+| Estado | Color | Descripción |
+|:---|:---:|:---|
+| En Desarrollo | 🟡 | Oportunidad en etapa inicial de trabajo |
+| Entregada | 🔵 | Propuesta enviada al cliente |
+| Finalizada | 🟢 | Cerrada exitosamente |
+| Pausa | 🟠 | Temporalmente detenida |
+| No Go | ⚪ | Descartada por el equipo |
+| Cancelada | ⚪ | Cancelada por el cliente |
+| Perdida | 🔴 | No ganada |
+| Ganada | 🟩 | Cerrada y ganada |
+
+---
 
 ## Roles y Permisos
 
 | Acción | Admin | Usuario | Solo Lectura |
-|---|:---:|:---:|:---:|
+|:---|:---:|:---:|:---:|
 | Ver todas las oportunidades | ✅ | ✅ | ✅ |
 | Ver Kanban (todas las cards) | ✅ | ✅ | ✅ |
 | Ver Calendario | ✅ | ✅ | ✅ |
@@ -53,49 +139,68 @@
 | Mover card en Kanban (propia) | ✅ | ✅ | ❌ |
 | Mover card en Kanban (ajena) | ✅ | ❌ | ❌ |
 | Eliminar oportunidad | ✅ | ❌ | ❌ |
+| Eliminar en bulk | ✅ | ❌ | ❌ |
 | Administrar usuarios | ✅ | ❌ | ❌ |
+| Carga masiva Excel | ✅ | ❌ | ❌ |
+
+---
 
 ## Tech Stack
 
 | Capa | Tecnología |
-|---|---|
-| Frontend | HTML, CSS, JavaScript (vanilla) |
+|:---|:---|
+| Frontend | HTML5, CSS3, JavaScript (ES6+, vanilla) |
 | Autenticación | Firebase Auth (Email/Password) |
-| Base de datos | Cloud Firestore |
+| Base de datos | Cloud Firestore con persistencia offline |
+| Gráficos | Chart.js 4.x |
+| Excel | SheetJS (XLSX) para importación/exportación |
+| FX Rates | ExchangeRate API (cache 30 min) |
+| Estilos | Glassmorphism, CSS Custom Properties, Dark Mode |
 | Deploy | GitHub Pages |
-| Estilos | Glassmorphism, CSS custom properties, Tailwind-free |
+
+---
 
 ## Estructura del Proyecto
 
 ```
-├── index.html              # App principal (SPA)
-├── login.html              # Página de login
-├── favicon.svg
-├── firestore.rules         # Reglas de seguridad de Firestore
-├── migrate.js              # Script de migración (Google Sheets → Firestore)
-├── SECURITY.md             # Política de seguridad
+├── index.html                  # SPA principal (todas las vistas)
+├── login.html                  # Página de login/autenticación
+├── favicon.svg                 # Icono de la aplicación
+├── firestore.rules             # Reglas de seguridad de Firestore
+├── SECURITY.md                 # Política de seguridad
 ├── .gitignore
+│
 └── assets/
-    ├── app.js              # Lógica principal de la SPA
-    ├── firebase-auth.js    # Autenticación (login, logout, CRUD usuarios)
-    ├── firebase-config.js  # Configuración de Firebase
-    ├── firebase-db.js      # Capa de datos (CRUD oportunidades, cache)
-    ├── style.css           # Estilos unificados (glassmorphism, dark mode)
-    └── theme.js            # Gestión de tema claro/oscuro por usuario
+    ├── app.js                  # Lógica principal: navegación, CRUD, Kanban,
+    │                           #   Calendario, Estadísticas, Import, Perfil
+    ├── firebase-auth.js        # Autenticación y gestión de usuarios
+    ├── firebase-config.js      # Configuración del proyecto Firebase
+    ├── firebase-db.js          # Capa de datos Firestore (CRUD, cache,
+    │                           #   listeners, log, exportación Excel)
+    ├── style.css               # Estilos unificados (glassmorphism, dark mode,
+    │                           #   responsive, animaciones)
+    └── theme.js                # Toggle y persistencia de tema claro/oscuro
 ```
+
+---
 
 ## Despliegue
 
-La app se despliega automáticamente en **GitHub Pages** cuando se hace push a la rama `main`.
+La aplicación se despliega automáticamente en **GitHub Pages** al hacer push a la rama `main`.
 
-Los cambios que requieren acción manual en Firebase:
+### Configuración requerida en Firebase
 
 1. **Firestore Rules** — Actualizar desde [Firebase Console](https://console.firebase.google.com/) > Firestore > Rules con el contenido de `firestore.rules`
 2. **Authorized Domains** — Agregar el dominio de GitHub Pages en Firebase Console > Authentication > Settings > Authorized Domains
+3. **Counter inicial** — Asegurar que exista el documento `counters/oportunidades` con `{ nextId: 1 }` (se crea automáticamente en el primer alta)
+
+---
 
 ## Seguridad
 
-La API key de Firebase que aparece en el código es **pública por diseño** y no representa un riesgo de seguridad. Ver [SECURITY.md](SECURITY.md) para más detalles.
+La API key de Firebase incluida en el código es **pública por diseño** y no representa un riesgo de seguridad. Las reglas de Firestore protegen el acceso a los datos. Ver [SECURITY.md](SECURITY.md) para más detalles.
+
+---
 
 ## Licencia
 
