@@ -1191,7 +1191,7 @@ function renderCalendario() {
 // ══════════════════════════════════════════════
 // PERIOD FILTER (Estadísticas)
 // ══════════════════════════════════════════════
-let _statsPeriod = 'month';
+let _statsPeriod = 'all';
 let _statsRefDate = new Date();
 let _statsCustomFrom = '';
 let _statsCustomTo = '';
