@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRESALES AR</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-  <link href="assets/style.css?v=9" rel="stylesheet"/>
+  <link href="assets/style.css?v=14" rel="stylesheet"/>
   <!-- External Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
@@ -278,6 +278,13 @@
         <div class="filters" id="kanbanFilters">
           <input type="text" id="k_search" placeholder="Buscar..." oninput="renderKanban()"/>
           <select id="k_responsable" onchange="renderKanban()"><option value="">Todos los responsables</option></select>
+          <div class="kanban-col-filter" id="kanbanColFilter">
+            <button class="kanban-col-filter-btn" onclick="toggleColFilter()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              Columnas <span class="badge" id="kColCount"></span>
+            </button>
+            <div class="kanban-col-filter-dd" id="kanbanColFilterDd"></div>
+          </div>
         </div>
         <div id="kanbanLoading" class="loading"><div class="spinner"></div> Cargando tablero...</div>
         <div id="kanbanBoard" class="kanban-board" style="display:none"></div>
@@ -603,6 +610,6 @@
 <script src="assets/firebase-auth.js"></script>
 <script src="assets/firebase-db.js"></script>
 <script src="assets/theme.js?v=2"></script>
-<script src="assets/app.js?v=5"></script>
+<script src="assets/app.js?v=6"></script>
 </body>
 </html>

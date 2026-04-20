@@ -1464,12 +1464,81 @@ function updateImportProgress(current, total) {
 // ══════════════════════════════════════════════
 let _kanbanRows = [];
 let _kanbanDragId = null;
+let _hiddenKanbanCols = [];
+
+function loadKanbanColFilter() {
+  try {
+    const saved = localStorage.getItem('kanban_hidden_cols');
+    _hiddenKanbanCols = saved ? JSON.parse(saved) : [];
+  } catch(e) { _hiddenKanbanCols = []; }
+}
+
+function saveKanbanColFilter() {
+  localStorage.setItem('kanban_hidden_cols', JSON.stringify(_hiddenKanbanCols));
+}
+
+function toggleColFilter() {
+  const dd = document.getElementById('kanbanColFilterDd');
+  const isOpen = dd.classList.contains('open');
+  closeAllDropdowns();
+  if (!isOpen) dd.classList.add('open');
+}
+
+function closeAllDropdowns() {
+  document.querySelectorAll('.kanban-col-filter-dd.open').forEach(d => d.classList.remove('open'));
+}
+
+function buildColFilterDropdown() {
+  const dd = document.getElementById('kanbanColFilterDd');
+  const total = CRM.ESTADOS.length;
+  const visible = total - _hiddenKanbanCols.length;
+  document.getElementById('kColCount').textContent = visible + '/' + total;
+
+  let html = CRM.ESTADOS.map(estado => {
+    const color = CRM.ESTADO_COLORS[estado];
+    const checked = !_hiddenKanbanCols.includes(estado);
+    return `<label onclick="event.stopPropagation();toggleKanbanCol('${escapeHtml(estado)}')">
+      <span class="cb-box ${checked ? 'checked' : ''}"></span>
+      <span class="dot" style="background:${color};width:8px;height:8px;border-radius:50%;flex-shrink:0"></span>
+      <span class="estado-name">${escapeHtml(estado)}</span>
+    </label>`;
+  }).join('');
+  html += '<div class="sep"></div>';
+  html += `<label onclick="event.stopPropagation()" style="font-size:11px;color:var(--text-muted);justify-content:center">
+    <a href="#" onclick="resetKanbanCols();return false" style="color:var(--accent);text-decoration:none;font-weight:600">Mostrar todas</a>
+  </label>`;
+  dd.innerHTML = html;
+}
+
+function toggleKanbanCol(estado) {
+  const idx = _hiddenKanbanCols.indexOf(estado);
+  if (idx >= 0) _hiddenKanbanCols.splice(idx, 1);
+  else _hiddenKanbanCols.push(estado);
+  saveKanbanColFilter();
+  buildColFilterDropdown();
+  renderKanban();
+}
+
+function resetKanbanCols() {
+  _hiddenKanbanCols = [];
+  saveKanbanColFilter();
+  buildColFilterDropdown();
+  renderKanban();
+}
+
+// Close dropdown on outside click
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.kanban-col-filter')) closeAllDropdowns();
+});
 
 async function initKanban() {
   const loading = document.getElementById('kanbanLoading');
   const board = document.getElementById('kanbanBoard');
   loading.style.display = 'flex';
   board.style.display = 'none';
+
+  loadKanbanColFilter();
+  buildColFilterDropdown();
 
   const session = AUTH.getSession();
   const raw = await CRM.getData();
@@ -1496,7 +1565,6 @@ async function initKanban() {
 function renderKanban() {
   const q = document.getElementById('k_search').value.trim().toLowerCase();
   const resp = document.getElementById('k_responsable').value;
-  const session = AUTH.getSession();
 
   let rows = _kanbanRows;
   if (resp) rows = rows.filter(r => r.responsable === resp);
@@ -1505,8 +1573,10 @@ function renderKanban() {
     return h.includes(q);
   });
 
+  const visibleEstados = CRM.ESTADOS.filter(e => !_hiddenKanbanCols.includes(e));
+
   const board = document.getElementById('kanbanBoard');
-  board.innerHTML = CRM.ESTADOS.map(estado => {
+  board.innerHTML = visibleEstados.map(estado => {
     const color = CRM.ESTADO_COLORS[estado];
     const cards = rows.filter(r => r.estado === estado);
     return `
@@ -1518,31 +1588,28 @@ function renderKanban() {
             <span class="kanban-col-count">${cards.length}</span>
           </div>
         </div>
-        <div class="kanban-col-body" data-estado="${escapeHtml(estado)}">
+        <div class="kanban-col-body">
           ${cards.length === 0 ? '<div class="kanban-col-empty">Sin oportunidades</div>' :
             cards.map(r => renderKanbanCard(r)).join('')}
         </div>
       </div>`;
   }).join('');
 
-  // Setup drag & drop on column bodies
-  board.querySelectorAll('.kanban-col-body').forEach(colBody => {
-    colBody.addEventListener('dragover', (e) => {
+  // Setup drag & drop on entire columns (not just body)
+  board.querySelectorAll('.kanban-col').forEach(col => {
+    col.addEventListener('dragover', (e) => {
       e.preventDefault();
-      colBody.classList.add('dragover');
-      colBody.closest('.kanban-col').classList.add('dragover');
+      col.classList.add('dragover');
     });
-    colBody.addEventListener('dragleave', (e) => {
-      if (!colBody.contains(e.relatedTarget)) {
-        colBody.classList.remove('dragover');
-        colBody.closest('.kanban-col').classList.remove('dragover');
+    col.addEventListener('dragleave', (e) => {
+      if (!col.contains(e.relatedTarget)) {
+        col.classList.remove('dragover');
       }
     });
-    colBody.addEventListener('drop', async (e) => {
+    col.addEventListener('drop', async (e) => {
       e.preventDefault();
-      colBody.classList.remove('dragover');
-      colBody.closest('.kanban-col').classList.remove('dragover');
-      const newEstado = colBody.dataset.estado;
+      col.classList.remove('dragover');
+      const newEstado = col.dataset.estado;
       if (!_kanbanDragId || !_kanbanDragEstado) return;
       if (_kanbanDragEstado === newEstado) return;
       await handleKanbanDrop(_kanbanDragId, newEstado);
@@ -1581,7 +1648,7 @@ document.addEventListener('dragstart', (e) => {
 document.addEventListener('dragend', (e) => {
   const card = e.target.closest('.kanban-card');
   if (card) card.classList.remove('dragging');
-  document.querySelectorAll('.kanban-col-body.dragover, .kanban-col.dragover').forEach(el => {
+  document.querySelectorAll('.kanban-col.dragover').forEach(el => {
     el.classList.remove('dragover');
   });
 });
