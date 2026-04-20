@@ -2263,6 +2263,74 @@ function verOportunidadLog(id) {
 }
 
 // ══════════════════════════════════════════════
+// KEYBOARD SHORTCUTS
+// ══════════════════════════════════════════════
+document.addEventListener('keydown', function(e) {
+  const tag = (e.target.tagName || '').toLowerCase();
+  const isInput = ['input', 'textarea', 'select'].includes(tag);
+
+  // ── Escape: cerrar modales ──
+  if (e.key === 'Escape') {
+    const verOpen   = document.getElementById('verModalOverlay').classList.contains('open');
+    const editOpen  = document.getElementById('editModalOverlay').classList.contains('open');
+    const userOpen  = document.getElementById('userModalOverlay').classList.contains('open');
+    const importOpen = document.getElementById('importModalOverlay').classList.contains('open');
+    if (verOpen)   { closeVerModal();   e.preventDefault(); }
+    else if (editOpen)  { closeEditModal();  e.preventDefault(); }
+    else if (userOpen)  { closeUserModal();  e.preventDefault(); }
+    else if (importOpen) { closeImportModal(); e.preventDefault(); }
+    return;
+  }
+
+  // Los siguientes atajos no se activan si el foco está en un input/textarea
+  if (isInput) return;
+
+  // ── Ctrl+N: nueva oportunidad ──
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+    e.preventDefault();
+    const btnNueva = document.getElementById('btnNueva');
+    if (btnNueva && btnNueva.style.display !== 'none') {
+      navigate(btnNueva);
+      resetNueva();
+    }
+    return;
+  }
+
+  // ── Ctrl+F: foco en buscador de la página activa ──
+  if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+    e.preventDefault();
+    const activePage = document.querySelector('.page-section.active');
+    if (!activePage) return;
+    const searchId = activePage.id === 'page-mis' ? 'mis_search'
+                   : activePage.id === 'page-todas' ? 't_search'
+                   : activePage.id === 'page-kanban' ? 'k_search'
+                   : null;
+    if (searchId) {
+      const input = document.getElementById(searchId);
+      if (input) { input.focus(); input.select(); }
+    }
+    return;
+  }
+});
+
+// ── Enter envía formularios ──
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Enter') return;
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag !== 'input' && tag !== 'select') return;
+  const type = (e.target.type || '').toLowerCase();
+  // Enter en un input que NO es textarea ni button envía el form padre
+  if (type === 'button' || type === 'submit' || type === 'reset' || type === 'checkbox' || type === 'radio') return;
+  const form = e.target.closest('form');
+  if (form) {
+    // No interferir con date inputs o campos que tienen comportamiento nativo
+    if (type === 'date' || type === 'month' || type === 'color' || type === 'file') return;
+    e.preventDefault();
+    form.requestSubmit();
+  }
+});
+
+// ══════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════
 function initApp() {
