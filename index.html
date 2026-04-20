@@ -469,7 +469,8 @@
 
 <!-- MODAL VER OPORTUNIDAD -->
 <div class="modal-overlay" id="verModalOverlay" onclick="closeVerModal(event)">
-  <div class="modal" style="max-width:600px;max-height:85vh;overflow-y:auto" onclick="event.stopPropagation()">
+  <div class="modal" style="max-width:600px;max-height:85vh" onclick="event.stopPropagation()">
+    <div class="edit-modal-scroll">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
       <div>
         <div id="verModalId" style="font-size:11px;color:var(--text-muted);font-weight:600;letter-spacing:0.05em;text-transform:uppercase"></div>
@@ -478,6 +479,7 @@
       <button onclick="closeVerModal()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;padding:4px;line-height:1">✕</button>
     </div>
     <div id="verModalContent"></div>
+    </div>
     <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
       <button class="btn btn-ghost" onclick="closeVerModal()">Cerrar</button>
       <button class="btn btn-primary" id="verModalEditBtn" onclick="">Editar →</button>

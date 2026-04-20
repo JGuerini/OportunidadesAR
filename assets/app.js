@@ -891,11 +891,11 @@ function renderTabla(page) {
     if (resp && r.responsable !== resp) return false;
     if (fDesde) {
       const from = new Date(fDesde + 'T00:00:00');
-      if (!isNaN(from.getTime()) && new Date(r.fechaCreacion) < from) return false;
+      if (!isNaN(from.getTime()) && new Date(r.fechaInicio) < from) return false;
     }
     if (fHasta) {
       const to = new Date(fHasta + 'T23:59:59');
-      if (!isNaN(to.getTime()) && new Date(r.fechaCreacion) > to) return false;
+      if (!isNaN(to.getTime()) && new Date(r.fechaInicio) > to) return false;
     }
     if (q) {
       const h = [r.codigo, r.cliente, r.nombre, r.responsable].join(' ').toLowerCase();
@@ -1270,8 +1270,8 @@ function onStatsCustomChange() {
 
 function filterByDateRange(rows, from, to) {
   return rows.filter(r => {
-    if (!r.fechaCreacion) return false;
-    const d = new Date(r.fechaCreacion);
+    if (!r.fechaInicio) return false;
+    const d = new Date(r.fechaInicio);
     if (isNaN(d.getTime())) return false;
     if (from && d < from) return false;
     if (to && d > to) return false;
