@@ -155,7 +155,13 @@
               </div>
               <div class="form-group" style="margin-bottom:18px"><label>Nombre de la Oportunidad *</label><input type="text" id="n_nombre" required/></div>
               <div class="form-group" style="margin-bottom:18px"><label>Descripción</label><textarea id="n_descripcion"></textarea></div>
-              <div class="form-group"><label>Origen *</label><select id="n_origen" required><option value="">— Seleccionar —</option><option>Fertilización</option><option>Otro</option><option>Proyecto</option><option>Renovación</option><option>RFP</option></select></div>
+              <div style="display:flex;gap:24px;align-items:flex-end">
+                <div class="form-group" style="flex:1"><label>Origen *</label><select id="n_origen" required><option value="">— Seleccionar —</option><option>Fertilización</option><option>Otro</option><option>Proyecto</option><option>Renovación</option><option>RFP</option></select></div>
+                <div class="form-group" style="flex:0 0 auto;min-width:130px">
+                  <label>Fertilización</label>
+                  <label class="switch"><input type="checkbox" id="n_fertilizacion"/><span class="slider"></span></label>
+                </div>
+              </div>
             </div>
             <div class="section-block">
               <div class="section-title">BID</div>
@@ -167,7 +173,7 @@
                 <div class="form-group"><label>Fecha de Inicio *</label><input type="date" id="n_fechaInicio" required/></div>
                 <div class="form-group"><label>Fecha de Entrega *</label><input type="date" id="n_fechaEntrega" required/></div>
               </div>
-              <div class="form-group"><label>Notas</label><textarea id="n_notas"></textarea></div>
+              <div class="form-group" style="margin-bottom:18px"><label>Notas</label><textarea id="n_notas"></textarea></div>
               <div class="form-group"><label>SharePoint</label><input type="url" id="n_sharepoint" placeholder="https://..."/></div>
             </div>
             <div class="section-block">
@@ -482,7 +488,13 @@
           </div>
           <div class="form-group" style="margin-bottom:18px"><label>Nombre de la Oportunidad *</label><input type="text" id="e_nombre" required/></div>
           <div class="form-group" style="margin-bottom:18px"><label>Descripción</label><textarea id="e_descripcion"></textarea></div>
-          <div class="form-group"><label>Origen *</label><select id="e_origen" required><option value="">— Seleccionar —</option><option>Fertilización</option><option>Otro</option><option>Proyecto</option><option>Renovación</option><option>RFP</option></select></div>
+          <div style="display:flex;gap:24px;align-items:flex-end">
+            <div class="form-group" style="flex:1"><label>Origen *</label><select id="e_origen" required><option value="">— Seleccionar —</option><option>Fertilización</option><option>Otro</option><option>Proyecto</option><option>Renovación</option><option>RFP</option></select></div>
+            <div class="form-group" style="flex:0 0 auto;min-width:130px">
+              <label>Fertilización</label>
+              <label class="switch"><input type="checkbox" id="e_fertilizacion"/><span class="slider"></span></label>
+            </div>
+          </div>
         </div>
         <div class="section-block">
           <div class="section-title">BID</div>
@@ -494,7 +506,7 @@
             <div class="form-group"><label>Fecha de Inicio *</label><input type="date" id="e_fechaInicio" required/></div>
             <div class="form-group"><label>Fecha de Entrega *</label><input type="date" id="e_fechaEntrega" required/></div>
           </div>
-          <div class="form-group"><label>Notas</label><textarea id="e_notas"></textarea></div>
+          <div class="form-group" style="margin-bottom:18px"><label>Notas</label><textarea id="e_notas"></textarea></div>
           <div class="form-group"><label>SharePoint</label><input type="url" id="e_sharepoint" placeholder="https://..."/></div>
         </div>
         <div class="section-block">

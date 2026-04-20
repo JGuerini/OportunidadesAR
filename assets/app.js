@@ -540,6 +540,7 @@ async function handleNueva(e) {
       nombre:       document.getElementById('n_nombre').value,
       descripcion:  document.getElementById('n_descripcion').value,
       origen:       document.getElementById('n_origen').value,
+      fertilizacion: document.getElementById('n_fertilizacion').checked,
       responsable:  document.getElementById('n_responsable').value,
       estado:       document.getElementById('n_estado').value,
       fechaInicio:  document.getElementById('n_fechaInicio').value,
@@ -600,6 +601,7 @@ async function openEditModal(id) {
   document.getElementById('e_nombre').value       = r.nombre || '';
   document.getElementById('e_descripcion').value  = r.descripcion || '';
   document.getElementById('e_origen').value       = r.origen || '';
+  document.getElementById('e_fertilizacion').checked = !!r.fertilizacion;
   document.getElementById('e_responsable').value  = r.responsable || '';
   document.getElementById('e_estado').value       = r.estado || '';
   document.getElementById('e_fechaInicio').value  = toInputDate(r.fechaInicio);
@@ -676,6 +678,7 @@ async function handleUpdate(e) {
       nombre:       document.getElementById('e_nombre').value,
       descripcion:  document.getElementById('e_descripcion').value,
       origen:       document.getElementById('e_origen').value,
+      fertilizacion: document.getElementById('e_fertilizacion').checked,
       responsable:  document.getElementById('e_responsable').value,
       estado:       document.getElementById('e_estado').value,
       fechaInicio:  document.getElementById('e_fechaInicio').value,
@@ -913,7 +916,8 @@ function verOportunidad(id) {
         ['Industria',     escapeHtml(r.industria)],
         ['Práctica/Área', escapeHtml(r.practica)],
         ['Descripción',   escapeHtml(r.descripcion)],
-        ['Origen',        escapeHtml(r.origen)],
+        ['Origen',         escapeHtml(r.origen)],
+        ['Fertilización',  r.fertilizacion ? 'Sí' : 'No'],
       ]
     },
     {
