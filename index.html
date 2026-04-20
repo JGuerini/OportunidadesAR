@@ -255,6 +255,8 @@
           <select id="t_estado" onchange="renderTabla(1)"><option value="">Todos los estados</option><option>En Desarrollo</option><option>Entregada</option><option>Finalizada</option><option>Pausa</option><option>No Go</option><option>Cancelada</option><option>Perdida</option><option>Ganada</option></select>
           <select id="t_practica" onchange="renderTabla(1)"><option value="">Todas las prácticas</option><option>AM</option><option>CES</option><option>Consultoría</option><option>DWP</option><option>Enablon</option><option>HCI</option><option>IA</option><option>SAP</option><option>Testing</option></select>
           <select id="t_responsable" onchange="renderTabla(1)"><option value="">Todos los responsables</option></select>
+          <input type="date" id="t_fechaDesde" onchange="renderTabla(1)" title="Creado desde">
+          <input type="date" id="t_fechaHasta" onchange="renderTabla(1)" title="Creado hasta">
         </div>
         <div class="bulk-bar" id="todasBulkBar" style="display:none">
           <span class="bulk-bar-text"><span id="todasBulkCount">0</span> seleccionada(s)</span>
@@ -335,6 +337,23 @@
       <div class="page-section" id="page-estadisticas">
         <h1>Estadísticas</h1>
         <p class="subtitle">Métricas y análisis de tu pipeline comercial.</p>
+        <div class="period-nav" id="statsPeriodNav">
+          <button class="btn btn-ghost" onclick="statsNavPrev()">&#8592;</button>
+          <span class="period-label" id="statsPeriodLabel">—</span>
+          <button class="btn btn-ghost" onclick="statsNavNext()">&#8594;</button>
+          <div class="period-sep"></div>
+          <button class="period-btn active" data-period="month" onclick="setStatsPeriod('month')">Mes</button>
+          <button class="period-btn" data-period="quarter" onclick="setStatsPeriod('quarter')">Trimestre</button>
+          <button class="period-btn" data-period="year" onclick="setStatsPeriod('year')">Año</button>
+          <button class="period-btn" data-period="custom" onclick="setStatsPeriod('custom')">Personalizado</button>
+          <button class="period-btn" data-period="all" onclick="setStatsPeriod('all')">Todo</button>
+        </div>
+        <div class="period-custom-row" id="statsCustomRow" style="display:none">
+          <label>Desde</label>
+          <input type="date" id="statsCustomFrom" onchange="onStatsCustomChange()">
+          <label>Hasta</label>
+          <input type="date" id="statsCustomTo" onchange="onStatsCustomChange()">
+        </div>
         <div id="statsLoading" class="loading"><div class="spinner"></div> Cargando datos...</div>
         <div id="statsContent" style="display:none">
           <div class="kpi-row" id="statsKpis"></div>

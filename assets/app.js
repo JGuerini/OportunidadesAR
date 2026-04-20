@@ -881,12 +881,22 @@ function renderTabla(page) {
   const prac = document.getElementById('t_practica').value;
   const resp = document.getElementById('t_responsable').value;
   const cli  = document.getElementById('t_cliente').value;
+  const fDesde = document.getElementById('t_fechaDesde').value;
+  const fHasta = document.getElementById('t_fechaHasta').value;
 
   const rows = _tablaRows.filter(r => {
     if (cli  && r.cliente  !== cli)  return false;
     if (est  && r.estado   !== est)  return false;
     if (prac && r.practica !== prac) return false;
     if (resp && r.responsable !== resp) return false;
+    if (fDesde) {
+      const from = new Date(fDesde + 'T00:00:00');
+      if (!isNaN(from.getTime()) && new Date(r.fechaCreacion) < from) return false;
+    }
+    if (fHasta) {
+      const to = new Date(fHasta + 'T23:59:59');
+      if (!isNaN(to.getTime()) && new Date(r.fechaCreacion) > to) return false;
+    }
     if (q) {
       const h = [r.codigo, r.cliente, r.nombre, r.responsable].join(' ').toLowerCase();
       if (!h.includes(q)) return false;
@@ -1179,22 +1189,120 @@ function renderCalendario() {
 }
 
 // ══════════════════════════════════════════════
+// PERIOD FILTER (Estadísticas)
+// ══════════════════════════════════════════════
+let _statsPeriod = 'month';
+let _statsRefDate = new Date();
+let _statsCustomFrom = '';
+let _statsCustomTo = '';
+
+function setStatsPeriod(period) {
+  _statsPeriod = period;
+  if (period !== 'custom') _statsRefDate = new Date();
+  updateStatsPeriodUI();
+  renderStats(true);
+}
+
+function statsNavPrev() {
+  const d = _statsRefDate;
+  if (_statsPeriod === 'month')        _statsRefDate = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+  else if (_statsPeriod === 'quarter') _statsRefDate = new Date(d.getFullYear(), d.getMonth() - 3, 1);
+  else if (_statsPeriod === 'year')    _statsRefDate = new Date(d.getFullYear() - 1, 0, 1);
+  updateStatsPeriodUI();
+  renderStats(true);
+}
+
+function statsNavNext() {
+  const d = _statsRefDate;
+  if (_statsPeriod === 'month')        _statsRefDate = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+  else if (_statsPeriod === 'quarter') _statsRefDate = new Date(d.getFullYear(), d.getMonth() + 3, 1);
+  else if (_statsPeriod === 'year')    _statsRefDate = new Date(d.getFullYear() + 1, 0, 1);
+  updateStatsPeriodUI();
+  renderStats(true);
+}
+
+function getStatsDateRange() {
+  const d = _statsRefDate;
+  if (_statsPeriod === 'month') {
+    return { from: new Date(d.getFullYear(), d.getMonth(), 1), to: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59) };
+  } else if (_statsPeriod === 'quarter') {
+    const qm = Math.floor(d.getMonth() / 3) * 3;
+    return { from: new Date(d.getFullYear(), qm, 1), to: new Date(d.getFullYear(), qm + 3, 0, 23, 59, 59) };
+  } else if (_statsPeriod === 'year') {
+    return { from: new Date(d.getFullYear(), 0, 1), to: new Date(d.getFullYear(), 11, 31, 23, 59, 59) };
+  } else if (_statsPeriod === 'custom') {
+    return {
+      from: _statsCustomFrom ? new Date(_statsCustomFrom + 'T00:00:00') : null,
+      to:   _statsCustomTo   ? new Date(_statsCustomTo + 'T23:59:59')   : null
+    };
+  }
+  return { from: null, to: null };
+}
+
+function getStatsPeriodLabel() {
+  const d = _statsRefDate;
+  if (_statsPeriod === 'month')    return MESES[d.getMonth()] + ' ' + d.getFullYear();
+  if (_statsPeriod === 'quarter')  return 'Q' + (Math.floor(d.getMonth() / 3) + 1) + ' ' + d.getFullYear();
+  if (_statsPeriod === 'year')     return String(d.getFullYear());
+  if (_statsPeriod === 'custom')   return (_statsCustomFrom || '...') + '  \u2192  ' + (_statsCustomTo || '...');
+  return 'Todo el período';
+}
+
+function updateStatsPeriodUI() {
+  const label = document.getElementById('statsPeriodLabel');
+  if (label) label.textContent = getStatsPeriodLabel();
+  document.querySelectorAll('#statsPeriodNav .period-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.period === _statsPeriod);
+  });
+  const customRow = document.getElementById('statsCustomRow');
+  if (customRow) customRow.style.display = _statsPeriod === 'custom' ? 'flex' : 'none';
+  const navBtns = document.querySelectorAll('#statsPeriodNav .btn-ghost');
+  navBtns.forEach(b => b.style.visibility = _statsPeriod === 'all' ? 'hidden' : 'visible');
+}
+
+function onStatsCustomChange() {
+  _statsCustomFrom = document.getElementById('statsCustomFrom').value;
+  _statsCustomTo = document.getElementById('statsCustomTo').value;
+  const label = document.getElementById('statsPeriodLabel');
+  if (label) label.textContent = getStatsPeriodLabel();
+  renderStats(true);
+}
+
+function filterByDateRange(rows, from, to) {
+  return rows.filter(r => {
+    if (!r.fechaCreacion) return false;
+    const d = new Date(r.fechaCreacion);
+    if (isNaN(d.getTime())) return false;
+    if (from && d < from) return false;
+    if (to && d > to) return false;
+    return true;
+  });
+}
+
+// ══════════════════════════════════════════════
 // ESTADÍSTICAS
 // ══════════════════════════════════════════════
 let _statsCharts = {};
 
 async function renderStats(silent = false) {
+  // Actualizar UI del selector de período
+  updateStatsPeriodUI();
+
   if (!silent) {
     document.getElementById('statsLoading').style.display = 'flex';
     document.getElementById('statsContent').style.display = 'none';
   }
   Object.values(_statsCharts).forEach(c => { try { c.destroy(); } catch(e) {} });
   _statsCharts = {};
-  const rows = await CRM.getData();
+  const allRows = await CRM.getData();
   if (!silent) {
     document.getElementById('statsLoading').style.display = 'none';
     document.getElementById('statsContent').style.display = 'block';
   }
+
+  // Filtrar por período seleccionado
+  const range = getStatsDateRange();
+  const rows = filterByDateRange(allRows, range.from, range.to);
 
   const totalTCV = rows.reduce((s, r) => s + (parseFloat(r.tcvEur) || 0), 0);
   const probProm = rows.length > 0 ? Math.round(rows.reduce((s, r) => s + (parseFloat(r.probabilidad) || 0), 0) / rows.length) : 0;
