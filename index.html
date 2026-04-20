@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRESALES AR</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-  <link href="assets/style.css?v=14" rel="stylesheet"/>
+  <link href="assets/style.css?v=18" rel="stylesheet"/>
   <!-- External Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
@@ -207,17 +207,22 @@
           <input type="text" id="mis_search" placeholder="Buscar..." oninput="renderMis(1)"/>
           <select id="mis_estado" onchange="renderMis(1)"><option value="">Todos los estados</option><option>En Desarrollo</option><option>Entregada</option><option>Finalizada</option><option>Pausa</option><option>No Go</option><option>Cancelada</option><option>Perdida</option><option>Ganada</option></select>
         </div>
+        <div class="bulk-bar" id="misBulkBar" style="display:none">
+          <span class="bulk-bar-text"><span id="misBulkCount">0</span> seleccionada(s)</span>
+          <button class="btn-sm btn-danger-bulk" onclick="bulkDeleteMis()">🗑 Eliminar selección</button>
+          <button class="btn-sm" onclick="clearBulkMis()">Cancelar</button>
+        </div>
         <div class="card" style="padding:0">
           <div id="misLoading" class="loading" style="padding:40px 28px"><div class="spinner"></div> Cargando datos...</div>
           <div id="misTable" style="display:none">
             <div class="table-wrap">
               <table>
                 <thead><tr>
-                  <th class="sort-th" onclick="sortMis('id')">ID</th>
+                  <th class="col-check" id="misCheckHead" style="display:none"><span class="bulk-cb" onclick="toggleBulkMis()"></span></th>
+                  <th class="sort-th" onclick="sortMis('codigo')">ID</th>
                   <th class="sort-th" onclick="sortMis('cliente')">Cliente</th>
                   <th class="sort-th" onclick="sortMis('nombre')">Nombre de la Oportunidad</th>
                   <th class="sort-th" onclick="sortMis('estado')">Estado</th>
-                  <th class="col-action">Acción</th>
                 </tr></thead>
                 <tbody id="misBody"></tbody>
               </table>
@@ -244,18 +249,23 @@
           <select id="t_practica" onchange="renderTabla(1)"><option value="">Todas las prácticas</option><option>AM</option><option>CES</option><option>Consultoría</option><option>DWP</option><option>Enablon</option><option>HCI</option><option>IA</option><option>SAP</option><option>Testing</option></select>
           <select id="t_responsable" onchange="renderTabla(1)"><option value="">Todos los responsables</option></select>
         </div>
+        <div class="bulk-bar" id="todasBulkBar" style="display:none">
+          <span class="bulk-bar-text"><span id="todasBulkCount">0</span> seleccionada(s)</span>
+          <button class="btn-sm btn-danger-bulk" onclick="bulkDeleteTodas()">🗑 Eliminar selección</button>
+          <button class="btn-sm" onclick="clearBulkTodas()">Cancelar</button>
+        </div>
         <div class="card" style="padding:0">
           <div id="todasLoading" class="loading" style="padding:40px 28px"><div class="spinner"></div> Cargando datos...</div>
           <div id="todasTable" style="display:none">
             <div class="table-wrap">
               <table>
                 <thead><tr>
-                  <th class="sort-th" onclick="sortTabla('id')">ID</th>
+                  <th class="col-check" id="todasCheckHead" style="display:none"><span class="bulk-cb" onclick="toggleBulkTodas()"></span></th>
+                  <th class="sort-th" onclick="sortTabla('codigo')">ID</th>
                   <th class="sort-th" onclick="sortTabla('cliente')">Cliente</th>
                   <th class="sort-th" onclick="sortTabla('nombre')">Nombre de la Oportunidad</th>
                   <th class="sort-th" onclick="sortTabla('responsable')">Responsable</th>
                   <th class="sort-th" onclick="sortTabla('estado')">Estado</th>
-                  <th class="col-action">Acción</th>
                 </tr></thead>
                 <tbody id="todasBody"></tbody>
               </table>
@@ -610,6 +620,6 @@
 <script src="assets/firebase-auth.js"></script>
 <script src="assets/firebase-db.js"></script>
 <script src="assets/theme.js?v=2"></script>
-<script src="assets/app.js?v=6"></script>
+<script src="assets/app.js?v=7"></script>
 </body>
 </html>

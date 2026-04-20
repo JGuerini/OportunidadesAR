@@ -1,6 +1,40 @@
 // assets/app.js — Logica principal de la aplicacion
 
 // ══════════════════════════════════════════════
+// SIDEBAR TOOLTIPS
+// ══════════════════════════════════════════════
+(function() {
+  const tip = document.createElement('div');
+  tip.className = 'sidebar-tooltip';
+  document.body.appendChild(tip);
+
+  function show(btn) {
+    const text = btn.dataset.tooltip;
+    if (!text) return;
+    if (!btn.closest('.sidebar.collapsed')) { hide(); return; }
+    tip.textContent = text;
+    tip.classList.add('visible');
+    const rect = btn.getBoundingClientRect();
+    tip.style.left = (rect.right + 12) + 'px';
+    tip.style.top = (rect.top + rect.height / 2) + 'px';
+    tip.style.transform = 'translateY(-50%)';
+  }
+
+  function hide() {
+    tip.classList.remove('visible');
+  }
+
+  document.addEventListener('mouseover', (e) => {
+    const btn = e.target.closest('.nav-item[data-tooltip]');
+    if (btn) show(btn);
+  });
+  document.addEventListener('mouseout', (e) => {
+    const btn = e.target.closest('.nav-item[data-tooltip]');
+    if (btn) hide();
+  });
+})();
+
+// ══════════════════════════════════════════════
 // CONSTANTES
 // ══════════════════════════════════════════════
 const PALETTE = [
@@ -677,6 +711,67 @@ async function refreshCurrentPage() {
 // TODAS LAS OPORTUNIDADES
 // ══════════════════════════════════════════════
 let _tablaRows = [], _sortKey = 'fechaCreacion', _sortDir = -1, _tablaPage = 1;
+let _bulkTodas = new Set();
+
+function isAdmin() { const s = AUTH.getSession(); return s && s.perfil === 'admin'; }
+
+function toggleBulkTodas() {
+  const allIds = _tablaRows.map(r => r.id);
+  const allSelected = allIds.every(id => _bulkTodas.has(id));
+  _bulkTodas.clear();
+  if (!allSelected) allIds.forEach(id => _bulkTodas.add(id));
+  updateBulkTodasUI();
+}
+
+function toggleBulkRowTodas(id) {
+  if (_bulkTodas.has(id)) _bulkTodas.delete(id);
+  else _bulkTodas.add(id);
+  updateBulkTodasUI();
+}
+
+function updateBulkTodasUI() {
+  const bar = document.getElementById('todasBulkBar');
+  const count = _bulkTodas.size;
+  document.getElementById('todasBulkCount').textContent = count;
+  bar.style.display = count > 0 ? 'flex' : 'none';
+  // Update header checkbox
+  const headCb = document.querySelector('#todasCheckHead .bulk-cb');
+  if (headCb) {
+    const allIds = _tablaRows.map(r => r.id);
+    const allSelected = allIds.length > 0 && allIds.every(id => _bulkTodas.has(id));
+    headCb.classList.toggle('checked', allSelected);
+  }
+  // Update row checkboxes
+  document.querySelectorAll('#todasBody tr').forEach(tr => {
+    const id = tr.dataset.id;
+    const cb = tr.querySelector('.row-cb .bulk-cb');
+    if (cb) cb.classList.toggle('checked', _bulkTodas.has(id));
+    tr.classList.toggle('row-selected', _bulkTodas.has(id));
+  });
+}
+
+function clearBulkTodas() {
+  _bulkTodas.clear();
+  updateBulkTodasUI();
+}
+
+async function bulkDeleteTodas() {
+  if (_bulkTodas.size === 0) return;
+  if (!confirm(`¿Seguro que querés eliminar ${_bulkTodas.size} oportunidad(es)?`)) return;
+  let ok = 0, fail = 0;
+  for (const id of _bulkTodas) {
+    try {
+      const r = findRowById(id) || {};
+      await CRM.deleteOportunidad(id);
+      CRM.logEvento('eliminacion', 'Eliminó la oportunidad (bulk)', id, r.codigo, r.nombre);
+      ok++;
+    } catch(e) { fail++; }
+  }
+  _bulkTodas.clear();
+  CRM.invalidateCache();
+  TOAST.success(`${ok} eliminada(s).${fail ? ` ${fail} error(es).` : ''}`);
+  await refreshCurrentPage();
+}
 
 async function initTabla() {
   document.getElementById('todasLoading').style.display = 'flex';
@@ -684,6 +779,11 @@ async function initTabla() {
   _tablaRows = await CRM.getData();
   document.getElementById('todasLoading').style.display = 'none';
   document.getElementById('todasTable').style.display = 'block';
+
+  // Show/hide bulk checkbox column for admin
+  document.getElementById('todasCheckHead').style.display = isAdmin() ? '' : 'none';
+
+  _bulkTodas.clear();
 
   // Populate responsables
   const resps = [...new Set(_tablaRows.map(r => r.responsable).filter(Boolean))].sort();
@@ -739,18 +839,20 @@ function renderTabla(page) {
   empty.style.display = 'none';
 
   const pg = paginate(rows, _tablaPage);
-  body.innerHTML = pg.rows.map(r => `
-    <tr>
+  const admin = isAdmin();
+  body.innerHTML = pg.rows.map(r => {
+    const checked = _bulkTodas.has(r.id);
+    return `
+    <tr class="row-clickable ${checked ? 'row-selected' : ''}" data-id="${r.id}" onclick="verOportunidad('${r.id}')">
+      ${admin ? `<td class="row-cb" onclick="event.stopPropagation()"><span class="bulk-cb ${checked ? 'checked' : ''}" onclick="event.stopPropagation();toggleBulkRowTodas('${r.id}')"></span></td>` : ''}
       <td class="col-id">${escapeHtml(friendlyId(r))}</td>
       <td style="font-weight:600">${escapeHtml(r.cliente) || '—'}</td>
       <td style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.nombre) || '—'}</td>
       <td style="color:var(--text-muted)">${escapeHtml(r.responsable) || '—'}</td>
       <td><span class="badge ${badgeEstado(r.estado)}">${escapeHtml(r.estado) || '—'}</span></td>
-      <td class="col-action" style="display:flex;gap:6px;justify-content:center">
-        <button class="btn-sm" onclick="verOportunidad('${r.id}')">Ver</button>
-        ${canEdit(r) ? `<button class="btn-sm" onclick="editFromTabla('${r.id}')">Editar</button>` : ''}
-      </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
+  updateBulkTodasUI();
 
   renderPagination('todasPagination', pg, (p) => renderTabla(p));
 }
@@ -1706,6 +1808,63 @@ async function handleKanbanDrop(id, newEstado) {
 // MIS OPORTUNIDADES
 // ══════════════════════════════════════════════
 let _misRows = [], _misSortKey = 'fechaCreacion', _misSortDir = -1, _misPage = 1;
+let _bulkMis = new Set();
+
+function toggleBulkMis() {
+  const allIds = _misRows.map(r => r.id);
+  const allSelected = allIds.every(id => _bulkMis.has(id));
+  _bulkMis.clear();
+  if (!allSelected) allIds.forEach(id => _bulkMis.add(id));
+  updateBulkMisUI();
+}
+
+function toggleBulkRowMis(id) {
+  if (_bulkMis.has(id)) _bulkMis.delete(id);
+  else _bulkMis.add(id);
+  updateBulkMisUI();
+}
+
+function updateBulkMisUI() {
+  const bar = document.getElementById('misBulkBar');
+  const count = _bulkMis.size;
+  document.getElementById('misBulkCount').textContent = count;
+  bar.style.display = count > 0 ? 'flex' : 'none';
+  const headCb = document.querySelector('#misCheckHead .bulk-cb');
+  if (headCb) {
+    const allIds = _misRows.map(r => r.id);
+    const allSelected = allIds.length > 0 && allIds.every(id => _bulkMis.has(id));
+    headCb.classList.toggle('checked', allSelected);
+  }
+  document.querySelectorAll('#misBody tr').forEach(tr => {
+    const id = tr.dataset.id;
+    const cb = tr.querySelector('.row-cb .bulk-cb');
+    if (cb) cb.classList.toggle('checked', _bulkMis.has(id));
+    tr.classList.toggle('row-selected', _bulkMis.has(id));
+  });
+}
+
+function clearBulkMis() {
+  _bulkMis.clear();
+  updateBulkMisUI();
+}
+
+async function bulkDeleteMis() {
+  if (_bulkMis.size === 0) return;
+  if (!confirm(`¿Seguro que querés eliminar ${_bulkMis.size} oportunidad(es)?`)) return;
+  let ok = 0, fail = 0;
+  for (const id of _bulkMis) {
+    try {
+      const r = findRowById(id) || {};
+      await CRM.deleteOportunidad(id);
+      CRM.logEvento('eliminacion', 'Eliminó la oportunidad (bulk)', id, r.codigo, r.nombre);
+      ok++;
+    } catch(e) { fail++; }
+  }
+  _bulkMis.clear();
+  CRM.invalidateCache();
+  TOAST.success(`${ok} eliminada(s).${fail ? ` ${fail} error(es).` : ''}`);
+  await refreshCurrentPage();
+}
 
 async function initMis() {
   document.getElementById('misLoading').style.display = 'flex';
@@ -1715,6 +1874,11 @@ async function initMis() {
   _misRows = raw.filter(r => r.responsable === session.nombre);
   document.getElementById('misLoading').style.display = 'none';
   document.getElementById('misTable').style.display = 'block';
+
+  // Show/hide bulk checkbox column for admin
+  document.getElementById('misCheckHead').style.display = isAdmin() ? '' : 'none';
+  _bulkMis.clear();
+
   _misPage = 1;
   renderMis();
 }
@@ -1751,17 +1915,19 @@ function renderMis(page) {
   empty.style.display = 'none';
 
   const pg = paginate(rows, _misPage);
-  body.innerHTML = pg.rows.map(r => `
-    <tr>
-      <td class="col-id">${friendlyId(r)}</td>
-      <td style="font-weight:600">${r.cliente || '—'}</td>
-      <td style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.nombre || '—'}</td>
-      <td><span class="badge ${badgeEstado(r.estado)}">${r.estado || '—'}</span></td>
-      <td class="col-action" style="display:flex;gap:6px;justify-content:center">
-        <button class="btn-sm" onclick="verOportunidad('${r.id}')">Ver</button>
-        <button class="btn-sm" onclick="editFromTabla('${r.id}')">Editar</button>
-      </td>
-    </tr>`).join('');
+  const admin = isAdmin();
+  body.innerHTML = pg.rows.map(r => {
+    const checked = _bulkMis.has(r.id);
+    return `
+    <tr class="row-clickable ${checked ? 'row-selected' : ''}" data-id="${r.id}" onclick="verOportunidad('${r.id}')">
+      ${admin ? `<td class="row-cb" onclick="event.stopPropagation()"><span class="bulk-cb ${checked ? 'checked' : ''}" onclick="event.stopPropagation();toggleBulkRowMis('${r.id}')"></span></td>` : ''}
+      <td class="col-id">${escapeHtml(friendlyId(r))}</td>
+      <td style="font-weight:600">${escapeHtml(r.cliente) || '—'}</td>
+      <td style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.nombre) || '—'}</td>
+      <td><span class="badge ${badgeEstado(r.estado)}">${escapeHtml(r.estado) || '—'}</span></td>
+    </tr>`;
+  }).join('');
+  updateBulkMisUI();
 
   renderPagination('misPagination', pg, (p) => renderMis(p));
 }
