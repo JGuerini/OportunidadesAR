@@ -64,6 +64,33 @@ function colorForValue(str) {
 }
 
 // ══════════════════════════════════════════════
+// TABLE ROW TOOLTIPS
+// ══════════════════════════════════════════════
+(function() {
+  const tip = document.createElement('div');
+  tip.className = 'row-tooltip';
+  document.body.appendChild(tip);
+
+  document.addEventListener('mouseover', (e) => {
+    const cell = e.target.closest('[data-tip]');
+    if (!cell) return;
+    tip.textContent = cell.dataset.tip;
+    tip.classList.add('visible');
+    const rect = cell.getBoundingClientRect();
+    const tipW = tip.offsetWidth;
+    let left = rect.left + rect.width / 2 - tipW / 2;
+    if (left < 8) left = 8;
+    if (left + tipW > window.innerWidth - 8) left = window.innerWidth - tipW - 8;
+    tip.style.left = left + 'px';
+    tip.style.top = (rect.top - 8) + 'px';
+  });
+
+  document.addEventListener('mouseout', (e) => {
+    if (e.target.closest('[data-tip]')) tip.classList.remove('visible');
+  });
+})();
+
+// ══════════════════════════════════════════════
 // PAGINATION
 // ══════════════════════════════════════════════
 const PER_PAGE = 20;
@@ -518,6 +545,7 @@ async function handleNueva(e) {
       fechaInicio:  document.getElementById('n_fechaInicio').value,
       fechaEntrega: document.getElementById('n_fechaEntrega').value,
       notas:        document.getElementById('n_notas').value,
+      sharepoint:   document.getElementById('n_sharepoint').value,
       tcv:          parseLocalizedNumber(document.getElementById('n_tcv').value) || 0,
       currency:     document.getElementById('n_currency').value,
       tcvEur:       document.getElementById('n_tcvEur').value || '0',
@@ -577,6 +605,7 @@ async function openEditModal(id) {
   document.getElementById('e_fechaInicio').value  = toInputDate(r.fechaInicio);
   document.getElementById('e_fechaEntrega').value = toInputDate(r.fechaEntrega);
   document.getElementById('e_notas').value        = r.notas || '';
+  document.getElementById('e_sharepoint').value   = r.sharepoint || '';
   document.getElementById('e_tcv').value          = r.tcv || '';
   document.getElementById('e_currency').value     = r.currency || '';
   document.getElementById('e_pm').value           = r.pm || '';
@@ -652,6 +681,7 @@ async function handleUpdate(e) {
       fechaInicio:  document.getElementById('e_fechaInicio').value,
       fechaEntrega: document.getElementById('e_fechaEntrega').value,
       notas:        document.getElementById('e_notas').value,
+      sharepoint:   document.getElementById('e_sharepoint').value,
       tcv:          parseLocalizedNumber(document.getElementById('e_tcv').value) || 0,
       currency:     document.getElementById('e_currency').value,
       tcvEur:       document.getElementById('e_tcvEur').value || '0',
@@ -842,14 +872,16 @@ function renderTabla(page) {
   const admin = isAdmin();
   body.innerHTML = pg.rows.map(r => {
     const checked = _bulkTodas.has(r.id);
+    const notasTip = r.notas ? r.notas.replace(/"/g, '&quot;') : '';
+    const fechaEntregaTip = r.fechaEntrega ? fmtFecha(r.fechaEntrega) : '';
     return `
     <tr class="row-clickable ${checked ? 'row-selected' : ''}" data-id="${r.id}" onclick="verOportunidad('${r.id}')">
       ${admin ? `<td class="row-cb" onclick="event.stopPropagation()"><span class="bulk-cb ${checked ? 'checked' : ''}" onclick="event.stopPropagation();toggleBulkRowTodas('${r.id}')"></span></td>` : ''}
       <td class="col-id">${escapeHtml(friendlyId(r))}</td>
       <td style="font-weight:600">${escapeHtml(r.cliente) || '—'}</td>
-      <td style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.nombre) || '—'}</td>
+      <td style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" ${notasTip ? 'data-tip="' + notasTip + '"' : ''}>${escapeHtml(r.nombre) || '—'}</td>
       <td style="color:var(--text-muted)">${escapeHtml(r.responsable) || '—'}</td>
-      <td><span class="badge ${badgeEstado(r.estado)}">${escapeHtml(r.estado) || '—'}</span></td>
+      <td ${fechaEntregaTip ? 'data-tip="Entrega: ' + fechaEntregaTip.replace(/"/g, '&quot;') + '"' : ''}><span class="badge ${badgeEstado(r.estado)}">${escapeHtml(r.estado) || '—'}</span></td>
     </tr>`;
   }).join('');
   updateBulkTodasUI();
@@ -897,6 +929,7 @@ function verOportunidad(id) {
     {
       title: 'Datos Comerciales',
       rows: [
+        ['SharePoint',       r.sharepoint ? `<a href="${escapeHtml(r.sharepoint)}" target="_blank" rel="noopener" style="color:var(--accent);word-break:break-all">${escapeHtml(r.sharepoint)}</a>` : '—'],
         ['TCV',            fmtNum(r.tcv) + (r.currency ? ' ' + escapeHtml(r.currency) : '')],
         ['TCV EUR',        fmtEURv(r.tcvEur)],
         ['Tipo de Cambio', fmtVal(r.tipoCambio)],
@@ -905,6 +938,8 @@ function verOportunidad(id) {
       ]
     },
   ];
+
+  // Nota: SharePoint ya se incluyó en Datos Comerciales arriba
 
   document.getElementById('verModalContent').innerHTML = sections.map(s => `
     <div style="margin-bottom:20px">
@@ -1918,13 +1953,15 @@ function renderMis(page) {
   const admin = isAdmin();
   body.innerHTML = pg.rows.map(r => {
     const checked = _bulkMis.has(r.id);
+    const notasTip = r.notas ? r.notas.replace(/"/g, '&quot;') : '';
+    const fechaEntregaTip = r.fechaEntrega ? fmtFecha(r.fechaEntrega) : '';
     return `
     <tr class="row-clickable ${checked ? 'row-selected' : ''}" data-id="${r.id}" onclick="verOportunidad('${r.id}')">
       ${admin ? `<td class="row-cb" onclick="event.stopPropagation()"><span class="bulk-cb ${checked ? 'checked' : ''}" onclick="event.stopPropagation();toggleBulkRowMis('${r.id}')"></span></td>` : ''}
       <td class="col-id">${escapeHtml(friendlyId(r))}</td>
       <td style="font-weight:600">${escapeHtml(r.cliente) || '—'}</td>
-      <td style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.nombre) || '—'}</td>
-      <td><span class="badge ${badgeEstado(r.estado)}">${escapeHtml(r.estado) || '—'}</span></td>
+      <td style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" ${notasTip ? 'data-tip="' + notasTip + '"' : ''}>${escapeHtml(r.nombre) || '—'}</td>
+      <td ${fechaEntregaTip ? 'data-tip="Entrega: ' + fechaEntregaTip.replace(/"/g, '&quot;') + '"' : ''}><span class="badge ${badgeEstado(r.estado)}">${escapeHtml(r.estado) || '—'}</span></td>
     </tr>`;
   }).join('');
   updateBulkMisUI();

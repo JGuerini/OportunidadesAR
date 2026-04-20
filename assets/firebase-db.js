@@ -6,7 +6,7 @@ const COLUMNS = [
   'codigo', 'cliente', 'industria', 'practica',
   'nombre', 'descripcion', 'origen',
   'responsable', 'responsableUid', 'estado', 'fechaInicio', 'fechaEntrega',
-  'notas', 'tcv', 'currency', 'tcvEur', 'tipoCambio',
+  'notas', 'sharepoint', 'tcv', 'currency', 'tcvEur', 'tipoCambio',
   'probabilidad', 'pm', 'fechaCreacion', 'fechaModificacion'
 ];
 
@@ -51,6 +51,7 @@ function docToObj(doc) {
     fechaInicio:     d.fechaInicio     || '',
     fechaEntrega:    d.fechaEntrega    || '',
     notas:           d.notas           || '',
+    sharepoint:      d.sharepoint      || '',
     tcv:             d.tcv             || 0,
     currency:        d.currency        || '',
     tcvEur:          d.tcvEur          || 0,
@@ -122,6 +123,7 @@ async function addOportunidad(data) {
       fechaInicio:       data.fechaInicio     || '',
       fechaEntrega:      data.fechaEntrega    || '',
       notas:             data.notas           || '',
+      sharepoint:        data.sharepoint      || '',
       tcv:               parseFloat(data.tcv) || 0,
       currency:          data.currency        || '',
       tcvEur:            parseFloat(data.tcvEur) || 0,
@@ -225,6 +227,7 @@ function downloadExcel(rows) {
       'Fecha de Inicio':         r.fechaInicio,
       'Fecha de Entrega':        r.fechaEntrega,
       'Notas':                   r.notas,
+      'SharePoint':              r.sharepoint,
       'TCV':                     r.tcv,
       'Currency':                r.currency,
       'TCV EUR':                 r.tcvEur,
@@ -235,9 +238,9 @@ function downloadExcel(rows) {
       'Fecha Modificación':      r.fechaModificacion
     }));
 
-    const cols = ['Código','Cliente','Industria','Práctica/Área','Nombre de la Oportunidad','Descripción','Origen','Responsable','Estado','Fecha de Inicio','Fecha de Entrega','Notas','TCV','Currency','TCV EUR','Tipo de Cambio','% Probabilidad','% PM','Fecha Creación','Fecha Modificación'];
+    const cols = ['Código','Cliente','Industria','Práctica/Área','Nombre de la Oportunidad','Descripción','Origen','Responsable','Estado','Fecha de Inicio','Fecha de Entrega','Notas','SharePoint','TCV','Currency','TCV EUR','Tipo de Cambio','% Probabilidad','% PM','Fecha Creación','Fecha Modificación'];
     const ws = XLSX.utils.json_to_sheet(mapped.length ? mapped : [Object.fromEntries(cols.map(c => [c, '']))]);
-    ws['!cols'] = [12,25,18,14,30,20,14,18,14,14,14,20,12,10,12,14,14,10,14,14].map(w => ({ wch: w }));
+    ws['!cols'] = [12,25,18,14,30,20,14,18,14,14,14,20,30,12,10,12,14,14,10,14,14].map(w => ({ wch: w }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Oportunidades');
 
