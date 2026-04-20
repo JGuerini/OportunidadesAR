@@ -1269,6 +1269,8 @@ function onStatsCustomChange() {
 }
 
 function filterByDateRange(rows, from, to) {
+  // Si from y to son null (período "Todo"), mostrar todas sin filtrar
+  if (!from && !to) return rows;
   return rows.filter(r => {
     if (!r.fechaInicio) return false;
     const d = new Date(r.fechaInicio);
