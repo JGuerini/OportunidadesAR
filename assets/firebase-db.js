@@ -297,6 +297,47 @@ function downloadExcel(rows) {
   }
 }
 
+// ── EXPORT JSON BACKUP ──
+async function exportJSONBackup() {
+  try {
+    const snap = await firebase.firestore().collection('oportunidades').orderBy('codigo').get();
+    const oportunidades = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    const counterSnap = await firebase.firestore().collection('counters').doc('oportunidades').get();
+    const counter = counterSnap.exists ? counterSnap.data() : { nextId: 1 };
+
+    const logSnap = await firebase.firestore().collection('log_eventos').orderBy('fecha').get();
+    const logEventos = logSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    const backup = {
+      _meta: {
+        version: 1,
+        fecha: new Date().toISOString(),
+        generadoPor: 'OportunidadesAR CRM',
+        coleccion: {
+          oportunidades: oportunidades.length,
+          log_eventos: logEventos.length
+        }
+      },
+      counter: counter,
+      oportunidades: oportunidades,
+      log_eventos: logEventos
+    };
+
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const fecha = new Date().toISOString().slice(0, 10);
+    a.download = `backup_oportunidades_${fecha}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    console.error('Error exportando JSON backup:', e);
+    throw e;
+  }
+}
+
 // ── LOG DE EVENTOS ──
 async function logEvento(accion, detalle, oppId, oppCodigo, oppNombre) {
   try {
@@ -348,7 +389,7 @@ async function getLogEventos(limit = 100) {
 
 window.CRM = {
   getData, addOportunidad, updateOportunidad, deleteOportunidad,
-  getOportunidad, downloadExcel, onOportunidadesChange, getNextCodigo,
+  getOportunidad, downloadExcel, exportJSONBackup, onOportunidadesChange, getNextCodigo,
   logEvento, getLogEventos, getLogByOppId, getClientesUnicos,
   COLUMNS, ESTADOS, ORIGENES, ESTADO_COLORS, invalidateCache
 };

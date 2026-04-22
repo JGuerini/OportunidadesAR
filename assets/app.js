@@ -1083,6 +1083,15 @@ async function downloadExcelAction() {
   CRM.downloadExcel(rows);
 }
 
+async function exportJSONBackupAction() {
+  try {
+    await CRM.exportJSONBackup();
+    TOAST.success('Backup descargado correctamente.');
+  } catch(e) {
+    TOAST.error('Error al generar el backup.');
+  }
+}
+
 // ══════════════════════════════════════════════
 // CALENDARIO
 // ══════════════════════════════════════════════
