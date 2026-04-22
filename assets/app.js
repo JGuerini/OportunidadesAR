@@ -1277,7 +1277,7 @@ function initStatsFilters(rows) {
       </div>
       <div class="ms-panel" id="ms_panel_${field}">
         <div class="ms-all-row" onclick="toggleMsAll('${field}', event)">
-          <input type="checkbox" id="ms_all_${field}" ${isSelected ? 'checked' : ''} ${isSelected ? 'data-checked' : ''}>
+          <input type="checkbox" id="ms_all_${field}" ${isSelected ? 'checked' : ''}>
           <span>Todos</span>
         </div>
         ${options.map((v, i) => {
@@ -1290,31 +1290,25 @@ function initStatsFilters(rows) {
         }).join('')}
       </div>`;
 
-    // Bind clicks via JS — prevent native checkbox toggle, let JS handle state
-    container.querySelectorAll('.ms-option input[type="checkbox"]').forEach(cb => {
-      cb.addEventListener('click', function(e) { e.preventDefault(); });
-    });
+    // Bind clicks via JS — use e.target to handle native checkbox toggle
     container.querySelectorAll('.ms-option').forEach(opt => {
       opt.addEventListener('click', function(e) {
         e.stopPropagation();
         const f = this.dataset.field;
         const cb = this.querySelector('input[type="checkbox"]');
         const val = this.querySelector('.ms-option-label').textContent;
+        // If click was on the label (not checkbox), toggle manually
+        if (e.target !== cb) cb.checked = !cb.checked;
+        // Now cb.checked reflects the intended state in all cases
         if (cb.checked) {
-          _statsFilterState[f].delete(val);
-          cb.checked = false;
-        } else {
           _statsFilterState[f].add(val);
-          cb.checked = true;
+        } else {
+          _statsFilterState[f].delete(val);
         }
         const allBox = document.getElementById('ms_all_' + f);
         const allOpts = container.querySelectorAll('.ms-option input[type="checkbox"]');
         const checkedCount = container.querySelectorAll('.ms-option input[type="checkbox"]:checked').length;
-        if (allBox) {
-          allBox.checked = checkedCount === allOpts.length;
-          if (checkedCount === allOpts.length) allBox.setAttribute('data-checked', '');
-          else allBox.removeAttribute('data-checked');
-        }
+        if (allBox) allBox.checked = checkedCount === allOpts.length;
         updateMsTrigger(f);
         renderStats(true);
       });
@@ -1341,29 +1335,25 @@ function toggleMsPanel(field) {
 
 function toggleMsAll(field, event) {
   event.stopPropagation();
-  event.preventDefault();
   const container = document.getElementById('sf_' + field);
   if (!container) return;
   const checkboxes = container.querySelectorAll('.ms-option input[type="checkbox"]');
   const allBox = document.getElementById('ms_all_' + field);
-  // Read current visual state before the native toggle messes with it
-  // (preventDefault on bubbling doesn't stop the native toggle, so we check data attribute)
-  const wasAllChecked = allBox.hasAttribute('data-checked');
+  // If click was on the label "Todos" (not the checkbox), toggle manually
+  if (event.target !== allBox) allBox.checked = !allBox.checked;
+  // Now allBox.checked reflects the intended state
+  const allChecked = allBox.checked;
 
-  if (wasAllChecked) {
-    _statsFilterState[field] = new Set();
-    allBox.checked = false;
-    allBox.removeAttribute('data-checked');
-    checkboxes.forEach(cb => { cb.checked = false; });
-  } else {
+  if (allChecked) {
     _statsFilterState[field] = new Set();
     container.querySelectorAll('.ms-option').forEach(opt => {
       const val = opt.querySelector('.ms-option-label').textContent;
       _statsFilterState[field].add(val);
       opt.querySelector('input[type="checkbox"]').checked = true;
     });
-    allBox.checked = true;
-    allBox.setAttribute('data-checked', '');
+  } else {
+    _statsFilterState[field] = new Set();
+    checkboxes.forEach(cb => { cb.checked = false; });
   }
 
   updateMsTrigger(field);
