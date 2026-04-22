@@ -28,13 +28,14 @@ async function login(email, password) {
     return { ok: true, session };
   } catch(e) {
     const msg = {
-      'auth/user-not-found':       'No existe un usuario con ese email.',
-      'auth/wrong-password':       'Contrasena incorrecta.',
-      'auth/invalid-email':        'Email invalido.',
-      'auth/too-many-requests':    'Demasiados intentos. Intenta mas tarde.',
-      'auth/invalid-credential':   'Email o contrasena incorrectos.',
-      'auth/user-disabled':        'Tu cuenta esta deshabilitada.'
-    }[e.code] || e.message || 'Error de conexion. Intenta de nuevo.';
+      'auth/user-not-found':              'Usuario o contrasena incorrectos.',
+      'auth/wrong-password':              'Usuario o contrasena incorrectos.',
+      'auth/invalid-credential':          'Usuario o contrasena incorrectos.',
+      'auth/invalid-login-credentials':   'Usuario o contrasena incorrectos.',
+      'auth/invalid-email':               'Email invalido.',
+      'auth/too-many-requests':           'Demasiados intentos. Intenta mas tarde.',
+      'auth/user-disabled':               'Tu cuenta esta deshabilitada.'
+    }[e.code] || 'Usuario o contrasena incorrectos.';
     return { ok: false, error: msg };
   }
 }
