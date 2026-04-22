@@ -1630,7 +1630,7 @@ function updateThemeUI() {
   const icon = document.getElementById('themeIcon');
   if (!icon) return;
   if (isDark) {
-    icon.innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 18 18"><path d="M13 10.5A6 6 0 0 1 5.5 3 7 7 0 1 0 13 10.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    icon.innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 18 18"><path d="M15.75 9.6A6.75 6.75 0 1 1 8.4 2.25A5.25 5.25 0 0 0 15.75 9.6z" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   } else {
     icon.innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 18 18"><circle cx="9" cy="9" r="3.5"/><path d="M9 1v2M9 15v2M1 9h2M15 9h2M3.3 3.3l1.4 1.4M13.3 13.3l1.4 1.4M3.3 14.7l1.4-1.4M13.3 4.7l1.4-1.4" stroke-linecap="round"/></svg>';
   }
