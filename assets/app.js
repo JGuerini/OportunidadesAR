@@ -1198,8 +1198,11 @@ const STATS_FILTER_LABELS = {
   cliente: 'Clientes'
 };
 let _statsFilterState = {}; // { estado: Set, practica: Set, ... }
+let _statsFiltersInitialized = false;
 
 function initStatsFilters(rows) {
+  if (!rows || rows.length === 0) return;
+
   const fields = ['estado', 'practica', 'responsable', 'cliente'];
   const allValues = {};
   fields.forEach(f => { allValues[f] = [...new Set(rows.map(r => r[f]).filter(Boolean))].sort(); });
@@ -1209,17 +1212,23 @@ function initStatsFilters(rows) {
     allValues.estado = CRM.ESTADOS.filter(e => rows.some(r => r.estado === e));
   }
 
-  // Verificar si los valores cambiaron (para no re-renderizar innecesariamente)
-  const currentKeys = {};
-  fields.forEach(f => { currentKeys[f] = allValues[f].join('|'); });
-  const prevKeys = _statsFilterKeys || {};
-  const changed = fields.some(f => currentKeys[f] !== prevKeys[f]);
+  const needsRebuild = !_statsFiltersInitialized;
 
-  if (!changed && document.querySelector('.ms-option')) return; // Ya inicializado y sin cambios
+  // Verificar si las opciones cambiaron (por onSnapshot)
+  if (_statsFiltersInitialized) {
+    const currentKeys = {};
+    fields.forEach(f => { currentKeys[f] = allValues[f].join('|'); });
+    const prevKeys = _statsFilterKeys || {};
+    const changed = fields.some(f => currentKeys[f] !== prevKeys[f]);
+    if (!changed) return;
+    _statsFilterKeys = currentKeys;
+  }
 
-  _statsFilterKeys = currentKeys;
+  _statsFiltersInitialized = true;
+  _statsFilterKeys = {};
+  fields.forEach(f => { _statsFilterKeys[f] = allValues[f].join('|'); });
 
-  // Preservar selecciones previas si siguen siendo válidas
+  // Preservar selecciones previas
   const prevState = {};
   fields.forEach(f => { if (_statsFilterState[f]) prevState[f] = new Set(_statsFilterState[f]); });
 
@@ -1230,15 +1239,17 @@ function initStatsFilters(rows) {
     if (!options || options.length === 0) { container.style.display = 'none'; return; }
     container.style.display = '';
 
-    // Reset state — all selected by default
-    _statsFilterState[field] = new Set(options);
-
-    // Si había selecciones previas, mantener las que siguen válidas
-    if (prevState[field]) {
+    // Si no había estado previo, seleccionar todo
+    if (!prevState[field]) {
+      _statsFilterState[field] = new Set(options);
+    } else {
+      // Mantener solo las selecciones previas que siguen siendo válidas
       _statsFilterState[field] = new Set(options.filter(v => prevState[field].has(v)));
     }
 
     const label = STATS_FILTER_LABELS[field] || field;
+    const isSelected = _statsFilterState[field].size === options.length;
+
     container.innerHTML = `
       <div class="ms-trigger" onclick="toggleMsPanel('${field}')">
         <span class="ms-trigger-label" id="ms_label_${field}">${label}</span>
@@ -1246,22 +1257,23 @@ function initStatsFilters(rows) {
       </div>
       <div class="ms-panel" id="ms_panel_${field}">
         <div class="ms-all-row" onclick="toggleMsAll('${field}', event)">
-          <input type="checkbox" id="ms_all_${field}" checked>
+          <input type="checkbox" id="ms_all_${field}" ${isSelected ? 'checked' : ''}>
           <span>Todos</span>
         </div>
-        ${options.map((v, i) => `
+        ${options.map((v, i) => {
+          const isChecked = _statsFilterState[field].has(v);
+          return `
           <div class="ms-option" data-field="${field}" data-idx="${i}">
-            <input type="checkbox" checked>
+            <input type="checkbox" ${isChecked ? 'checked' : ''}>
             <span class="ms-option-label">${escapeHtml(v)}</span>
-          </div>
-        `).join('')}
+          </div>`;
+        }).join('')}
       </div>`;
 
-    // Bind clicks via JS (más seguro que inline onclick con valores escapados)
+    // Bind clicks via JS
     container.querySelectorAll('.ms-option').forEach(opt => {
       opt.addEventListener('click', function(e) {
         e.stopPropagation();
-        const idx = parseInt(this.dataset.idx);
         const f = this.dataset.field;
         const cb = this.querySelector('input[type="checkbox"]');
         const val = this.querySelector('.ms-option-label').textContent;
@@ -1272,7 +1284,6 @@ function initStatsFilters(rows) {
           _statsFilterState[f].add(val);
           cb.checked = true;
         }
-        // Actualizar "Todos"
         const allBox = document.getElementById('ms_all_' + f);
         const allOpts = container.querySelectorAll('.ms-option input[type="checkbox"]');
         const checkedCount = container.querySelectorAll('.ms-option input[type="checkbox"]:checked').length;
