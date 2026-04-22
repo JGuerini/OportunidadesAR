@@ -20,7 +20,7 @@ Gestión integral de pipeline comercial con seguimiento en tiempo real, análisi
 
 | Dashboard | Kanban Board | Estadísticas |
 |:---:|:---:|:---:|
-| KPIs en tiempo real, pipeline visual y últimas oportunidades | Drag & drop entre columnas de estado | Gráficos interactivos con Chart.js |
+| KPIs, próximas entregas y métricas clave | Drag & drop entre columnas de estado | Gráficos interactivos con Chart.js |
 
 ---
 
@@ -33,7 +33,16 @@ Gestión integral de pipeline comercial con seguimiento en tiempo real, análisi
 - **Vista detallada** — Modal de solo lectura con toda la info organizada por secciones
 - **Eliminación individual o masiva** — Con confirmación y log de eventos
 - **Código secuencial automático** — Cada oportunidad recibe un ID `OPP-XXXX` incremental
+- **Autocompletado de clientes** — Sugerencias basadas en clientes ya existentes al crear/editar
 - **Campos disponibles:** Cliente, Industria, Práctica/Área, Nombre, Descripción, Origen, Responsable, Estado, Fechas de Inicio/Entrega, Notas, SharePoint (URL), TCV, Currency, TCV EUR, Tipo de Cambio, Probabilidad, PM
+
+### Dashboard
+
+- **Oportunidades activas** — Cantidad de oportunidades en estados activos (En Desarrollo, Pausa, Entregada)
+- **En Desarrollo** — Cantidad de oportunidades actualmente en desarrollo
+- **Nuevas este mes** — Oportunidades creadas en el mes corriente (basado en fecha de inicio)
+- **Oportunidades entregadas** — Total de oportunidades en estado "Entregada"
+- **Próximas a Entregar** — Tabla con las 5 entregas más cercanas, con indicador de urgencia por color (rojo/amarillo/gris)
 
 ### Tablas con Interactividad
 
@@ -49,7 +58,8 @@ Gestión integral de pipeline comercial con seguimiento en tiempo real, análisi
 
 ### Kanban Board
 
-- **Tablero visual por estados** — Columnas dinámicas: En Desarrollo, Entregada, Finalizada, Pausa, No Go, Cancelada, Perdida, Ganada
+- **Tablero visual por estados** — Columnas dinámicas: En Desarrollo, Entregada, Pausa, No Go, Cancelada, Perdida, Ganada
+- **Headers sticky** — Los encabezados de columna permanecen visibles al hacer scroll
 - **Drag & drop** — Mover cards entre columnas para cambiar el estado de una oportunidad
 - **Actualización optimista** — La UI responde al instante y se sincroniza con Firestore en background
 - **Filtro de columnas** — Mostrar/ocultar columnas individuales (persistencia en localStorage)
@@ -66,11 +76,11 @@ Gestión integral de pipeline comercial con seguimiento en tiempo real, análisi
 
 ### Estadísticas
 
-- **KPIs principales** — Total de oportunidades, TCV EUR total, En Desarrollo, Probabilidad promedio
+- **KPIs principales** — Oportunidades activas, En Desarrollo, Nuevas este mes, Oportunidades entregadas
 - **Distribución por estado** — Gráfico doughnut con cantidades
 - **TCV EUR por estado** — Gráfico de barras con valores en euros
 - **Pipeline por estado** — Funnel chart horizontal con barras proporcionales
-- **Origen de oportunidades** — Gráfico pie (Fertilización, Proyecto, RFP, Renovación, Otro)
+- **Origen de oportunidades** — Gráfico pie (Otro, Proyecto, Renovación, RFP)
 - **Por responsable** — Gráfico de barras horizontales (top 8)
 - **Por práctica/área** — Gráfico de barras horizontales (AM, CES, IA, SAP, etc.)
 - **Por industria** — Gráfico pie con 15 industrias
@@ -96,6 +106,7 @@ Gestión integral de pipeline comercial con seguimiento en tiempo real, análisi
 - **Glassmorphism** — Diseño moderno con glassmorphism, degradados y floating blobs
 - **Modo claro/oscuro** — Toggle con persistencia por usuario en localStorage
 - **Sidebar colapsable** — Navegación compacta con tooltips en modo colapsado
+- **Autocompletado de clientes** — Sugerencias en tiempo real al crear/editar oportunidades basadas en clientes ya cargados
 - **Notificaciones toast** — Feedback visual inmediato para cada acción (success, error, warning, info)
 - **Skeleton loading** — Estados de carga con animación shimmer
 - **Indicador de conexión** — Status dot en tiempo real (conectado, sincronizando, sin conexión)
@@ -115,7 +126,6 @@ Gestión integral de pipeline comercial con seguimiento en tiempo real, análisi
 |:---|:---:|:---|
 | En Desarrollo | 🟡 | Oportunidad en etapa inicial de trabajo |
 | Entregada | 🔵 | Propuesta enviada al cliente |
-| Finalizada | 🟢 | Cerrada exitosamente |
 | Pausa | 🟠 | Temporalmente detenida |
 | No Go | ⚪ | Descartada por el equipo |
 | Cancelada | ⚪ | Cancelada por el cliente |
