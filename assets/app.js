@@ -228,7 +228,7 @@ function canEdit(r) {
 }
 
 function badgeEstado(e) {
-  return { 'En Desarrollo': 'badge-desarrollo', 'Entregada': 'badge-entregada', 'Finalizada': 'badge-finalizada', 'Pausa': 'badge-pausa', 'No Go': 'badge-nogo', 'Cancelada': 'badge-cancelada', 'Perdida': 'badge-perdido', 'Ganada': 'badge-ganado' }[e] || '';
+  return { 'En Desarrollo': 'badge-desarrollo', 'Entregada': 'badge-entregada', 'Pausa': 'badge-pausa', 'No Go': 'badge-nogo', 'Cancelada': 'badge-cancelada', 'Perdida': 'badge-perdido', 'Ganada': 'badge-ganado' }[e] || '';
 }
 
 function showAlert(id, msg, type) {
@@ -1627,12 +1627,8 @@ function infoRow(label, value) {
 
 function updateThemeUI() {
   const isDark = THEME.getSavedTheme() === 'dark';
-  const toggle = document.getElementById('themeToggle');
-  const knob   = document.getElementById('themeKnob');
-  const label  = document.getElementById('themeLabel');
-  if (toggle) toggle.style.background = isDark ? 'var(--accent)' : '#ccc';
-  if (knob)   knob.style.transform    = isDark ? 'translateX(20px)' : 'translateX(0)';
-  if (label)  label.textContent       = isDark ? 'Oscuro' : 'Claro';
+  const icon = document.getElementById('themeIcon');
+  if (icon) icon.textContent = isDark ? '🌙' : '☀️';
 }
 
 function handleThemeToggle() {
