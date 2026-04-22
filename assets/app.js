@@ -392,19 +392,27 @@ function setStatus(state) {
 async function renderHome() {
   updateGreeting();
   const rows = await CRM.getData();
-  const totalTCV = rows.reduce((s, r) => s + (parseFloat(r.tcvEur) || 0), 0);
+  const activas = rows.filter(r => ['En Desarrollo', 'Pausa', 'Entregada'].includes(r.estado)).length;
   const enDes = rows.filter(r => r.estado === 'En Desarrollo').length;
-  const ganadas  = rows.filter(r => r.estado === 'Ganada').length;
-  const perdidas = rows.filter(r => r.estado === 'Perdida').length;
-  const winRate  = (ganadas + perdidas) > 0 ? Math.round(ganadas / (ganadas + perdidas) * 100) : 0;
+  const entregadas = rows.filter(r => r.estado === 'Entregada').length;
+
+  // Nuevas este mes: fechaInicio cae en el mes actual
+  const ahora = new Date();
+  const mesActual = ahora.getMonth();
+  const anioActual = ahora.getFullYear();
+  const nuevasMes = rows.filter(r => {
+    if (!r.fechaInicio) return false;
+    const f = new Date(r.fechaInicio + 'T12:00:00');
+    return f.getMonth() === mesActual && f.getFullYear() === anioActual;
+  }).length;
 
   const homeStats = document.getElementById('homeStats');
   if (homeStats) {
     homeStats.innerHTML = [
-      { v: rows.length, l: 'Total Opor.' },
+      { v: activas, l: 'Oportunidades activas' },
       { v: enDes, l: 'En Desarrollo' },
-      { v: fmtEUR(totalTCV), l: 'TCV EUR Total' },
-      { v: winRate + '%', l: 'Win Rate' }
+      { v: nuevasMes, l: 'Nuevas este mes' },
+      { v: entregadas, l: 'Oportunidades entregadas' }
     ].map(s => `<div class="qs-card"><div class="qs-value">${s.v}</div><div class="qs-label">${s.l}</div></div>`).join('');
   }
 
