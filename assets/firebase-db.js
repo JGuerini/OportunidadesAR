@@ -36,6 +36,14 @@ function invalidateCache() {
   _cacheTs = 0;
 }
 
+// ── CLIENTES ÚNICOS (para autocomplete) ──
+function getClientesUnicos() {
+  if (!_cache) return [];
+  return [...new Set(_cache.map(r => r.cliente).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b, 'es', { sensitivity: 'base' })
+  );
+}
+
 // ── MAPEO: Firestore doc → objeto plano ──
 function docToObj(doc) {
   const d = doc.data();
@@ -341,6 +349,6 @@ async function getLogEventos(limit = 100) {
 window.CRM = {
   getData, addOportunidad, updateOportunidad, deleteOportunidad,
   getOportunidad, downloadExcel, onOportunidadesChange, getNextCodigo,
-  logEvento, getLogEventos, getLogByOppId,
+  logEvento, getLogEventos, getLogByOppId, getClientesUnicos,
   COLUMNS, ESTADOS, ORIGENES, ESTADO_COLORS, invalidateCache
 };
