@@ -440,7 +440,12 @@ async function renderHome() {
           const dias = Math.ceil((new Date(r.fechaEntrega) - hoy) / 86400000);
           const urgencia = dias <= 3 ? 'color:#ef4444;font-weight:700' : dias <= 7 ? 'color:#f59e0b;font-weight:600' : 'color:var(--text-muted)';
           return `<tr><td style="font-weight:600">${escapeHtml(r.cliente) || '—'}</td><td>${escapeHtml(r.nombre) || '—'}</td><td style="${urgencia}">${fmtFecha(r.fechaEntrega)}</td></tr>`;
-        }).join('')}</tbody></table>`;
+        }).join('')}</tbody></table>
+        <div style="display:flex;gap:12px;margin-top:10px;font-size:10px;color:var(--text-muted);font-weight:500;letter-spacing:0.02em">
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:#ef4444;flex-shrink:0"></span> 3 días o menos</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;flex-shrink:0"></span> 7 días o menos</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:var(--text-muted);opacity:0.5;flex-shrink:0"></span> Más de 7 días</span>
+        </div>`;
   }
 }
 
