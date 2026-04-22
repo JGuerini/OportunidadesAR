@@ -2752,7 +2752,7 @@ function initApp() {
 
   // Connection check
   checkConexion();
-  setInterval(checkConexion, 300000); // 5 minutos
+  setInterval(checkConexion, 600000); // 10 minutos
 
   // Real-time listener: si cambian datos en Firestore, actualizar
   CRM.onOportunidadesChange((freshData) => {
