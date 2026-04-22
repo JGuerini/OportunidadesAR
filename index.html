@@ -464,7 +464,10 @@
           <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
             <div style="font-size:13px;font-weight:600;margin-bottom:10px">Restaurar desde archivo</div>
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-              <input type="file" id="importJSONFile" accept=".json" style="flex:1;min-width:200px;font-size:12px"/>
+              <input type="file" id="importJSONFile" accept=".json" style="display:none" onchange="document.getElementById('importJSONFileName').textContent = this.files[0] ? this.files[0].name : ''"/>
+              <button class="btn btn-ghost" style="flex:1;min-width:200px;cursor:pointer;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" onclick="document.getElementById('importJSONFile').click()">
+                <span id="importJSONFileName" style="color:var(--text-muted)">Seleccionar archivo .json</span>
+              </button>
               <button class="btn btn-ghost" id="importJSONBtn" onclick="importJSONBackupAction()">Restaurar Backup</button>
             </div>
             <div id="importJSONProgress" style="display:none;margin-top:12px">
