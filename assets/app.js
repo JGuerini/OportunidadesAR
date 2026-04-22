@@ -1294,6 +1294,7 @@ function initStatsFilters(rows) {
     container.querySelectorAll('.ms-option').forEach(opt => {
       opt.addEventListener('click', function(e) {
         e.stopPropagation();
+        e.preventDefault();
         const f = this.dataset.field;
         const cb = this.querySelector('input[type="checkbox"]');
         const val = this.querySelector('.ms-option-label').textContent;
@@ -1334,6 +1335,7 @@ function toggleMsPanel(field) {
 
 function toggleMsAll(field, event) {
   event.stopPropagation();
+  event.preventDefault();
   const container = document.getElementById('sf_' + field);
   if (!container) return;
   const checkboxes = container.querySelectorAll('.ms-option input[type="checkbox"]');
