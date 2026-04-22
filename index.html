@@ -457,12 +457,29 @@
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
             <div>
               <div style="font-size:16px;font-weight:700">Backup de Base de Datos</div>
-              <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Exportá un JSON completo de oportunidades, log y configuración</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Exportá o importá un JSON completo (oportunidades, usuarios, log y configuración)</div>
             </div>
             <button class="btn btn-primary" onclick="exportJSONBackupAction()">↓ Exportar JSON</button>
           </div>
-          <div style="font-size:11px;color:var(--text-muted);line-height:1.5;background:var(--bg);padding:10px 14px;border-radius:var(--radius-sm)">
-            El archivo incluye todas las oportunidades (con sus IDs de Firestore), el contador secuencial de códigos OPP-XXXX y el registro de eventos. Util para migrar a otra instancia de Firebase o como respaldo de seguridad.
+          <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+            <div style="font-size:13px;font-weight:600;margin-bottom:10px">Restaurar desde archivo</div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <input type="file" id="importJSONFile" accept=".json" style="flex:1;min-width:200px;font-size:12px"/>
+              <button class="btn btn-ghost" id="importJSONBtn" onclick="importJSONBackupAction()">Restaurar Backup</button>
+            </div>
+            <div id="importJSONProgress" style="display:none;margin-top:12px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:6px">
+                <span id="importJSONProgressText">Procesando...</span>
+                <span id="importJSONProgressCount">0/0</span>
+              </div>
+              <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+                <div id="importJSONProgressBar" style="height:100%;background:var(--accent);border-radius:3px;transition:width 0.3s;width:0%"></div>
+              </div>
+            </div>
+            <div id="importJSONResult" style="display:none;margin-top:12px;padding:12px 16px;border-radius:var(--radius-sm);font-size:13px"></div>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);line-height:1.5;background:var(--bg);padding:10px 14px;border-radius:var(--radius-sm);margin-top:12px">
+            El backup incluye oportunidades (con IDs de Firestore), usuarios (perfiles), el contador secuencial OPP-XXXX y el registro de eventos. Las cuentas de autenticación (Firebase Auth) se deben crear manualmente o desde Gestión de Usuarios.
           </div>
         </div>
 

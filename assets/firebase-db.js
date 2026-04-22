@@ -309,19 +309,24 @@ async function exportJSONBackup() {
     const logSnap = await firebase.firestore().collection('log_eventos').orderBy('fecha').get();
     const logEventos = logSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
+    const usersSnap = await firebase.firestore().collection('usuarios').orderBy('nombre').get();
+    const usuarios = usersSnap.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+
     const backup = {
       _meta: {
-        version: 1,
+        version: 2,
         fecha: new Date().toISOString(),
         generadoPor: 'OportunidadesAR CRM',
         coleccion: {
           oportunidades: oportunidades.length,
-          log_eventos: logEventos.length
+          log_eventos: logEventos.length,
+          usuarios: usuarios.length
         }
       },
       counter: counter,
       oportunidades: oportunidades,
-      log_eventos: logEventos
+      log_eventos: logEventos,
+      usuarios: usuarios
     };
 
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
@@ -336,6 +341,86 @@ async function exportJSONBackup() {
     console.error('Error exportando JSON backup:', e);
     throw e;
   }
+}
+
+// ── IMPORT JSON BACKUP ──
+async function importJSONBackup(file, onProgress) {
+  const text = await file.text();
+  let backup;
+  try {
+    backup = JSON.parse(text);
+  } catch(e) {
+    throw new Error('Archivo JSON invalido.');
+  }
+  if (!backup._meta || !backup.oportunidades) {
+    throw new Error('El archivo no es un backup valido de OportunidadesAR.');
+  }
+
+  const batchMax = 500;
+  let totalOps = 0, totalLog = 0, totalUsers = 0;
+
+  // 1) Counter
+  if (backup.counter) {
+    const counterRef = firebase.firestore().collection('counters').doc('oportunidades');
+    await counterRef.set(backup.counter);
+    if (onProgress) onProgress('Counter actualizado', 0, 0);
+  }
+
+  // 2) Oportunidades
+  if (backup.oportunidades && backup.oportunidades.length > 0) {
+    const ops = backup.oportunidades;
+    for (let i = 0; i < ops.length; i += batchMax) {
+      const batch = firebase.firestore().batch();
+      const chunk = ops.slice(i, i + batchMax);
+      chunk.forEach(opp => {
+        const ref = firebase.firestore().collection('oportunidades').doc(opp.id);
+        const data = { ...opp };
+        delete data.id;
+        batch.set(ref, data);
+      });
+      await batch.commit();
+      totalOps += chunk.length;
+      if (onProgress) onProgress('Oportunidades', totalOps, ops.length);
+    }
+  }
+
+  // 3) Log de eventos
+  if (backup.log_eventos && backup.log_eventos.length > 0) {
+    const logs = backup.log_eventos;
+    for (let i = 0; i < logs.length; i += batchMax) {
+      const batch = firebase.firestore().batch();
+      const chunk = logs.slice(i, i + batchMax);
+      chunk.forEach(ev => {
+        const ref = firebase.firestore().collection('log_eventos').doc(ev.id);
+        const data = { ...ev };
+        delete data.id;
+        batch.set(ref, data);
+      });
+      await batch.commit();
+      totalLog += chunk.length;
+      if (onProgress) onProgress('Eventos', totalLog, logs.length);
+    }
+  }
+
+  // 4) Usuarios (solo datos de perfil, no Auth — las cuentas se crean por separado)
+  if (backup.usuarios && backup.usuarios.length > 0) {
+    const users = backup.usuarios;
+    for (let i = 0; i < users.length; i += batchMax) {
+      const batch = firebase.firestore().batch();
+      const chunk = users.slice(i, i + batchMax);
+      chunk.forEach(u => {
+        const ref = firebase.firestore().collection('usuarios').doc(u.uid);
+        const data = { ...u };
+        delete data.uid;
+        batch.set(ref, data);
+      });
+      await batch.commit();
+      totalUsers += chunk.length;
+      if (onProgress) onProgress('Usuarios', totalUsers, users.length);
+    }
+  }
+
+  return { oportunidades: totalOps, log_eventos: totalLog, usuarios: totalUsers };
 }
 
 // ── LOG DE EVENTOS ──
@@ -389,7 +474,8 @@ async function getLogEventos(limit = 100) {
 
 window.CRM = {
   getData, addOportunidad, updateOportunidad, deleteOportunidad,
-  getOportunidad, downloadExcel, exportJSONBackup, onOportunidadesChange, getNextCodigo,
+  getOportunidad, downloadExcel, exportJSONBackup, importJSONBackup,
+  onOportunidadesChange, getNextCodigo,
   logEvento, getLogEventos, getLogByOppId, getClientesUnicos,
   COLUMNS, ESTADOS, ORIGENES, ESTADO_COLORS, invalidateCache
 };

@@ -1092,6 +1092,52 @@ async function exportJSONBackupAction() {
   }
 }
 
+async function importJSONBackupAction() {
+  const file = document.getElementById('importJSONFile').files[0];
+  if (!file) { TOAST.warning('Seleccioná un archivo JSON primero.'); return; }
+
+  if (!confirm('Esto va a sobreescribir TODOS los datos actuales (oportunidades, log, usuarios, counter). Confirmar importacion?')) return;
+
+  const btn = document.getElementById('importJSONBtn');
+  const progressWrap = document.getElementById('importJSONProgress');
+  const progressText = document.getElementById('importJSONProgressText');
+  const progressCount = document.getElementById('importJSONProgressCount');
+  const progressBar = document.getElementById('importJSONProgressBar');
+  const result = document.getElementById('importJSONResult');
+
+  btn.disabled = true;
+  btn.textContent = 'Importando...';
+  progressWrap.style.display = 'block';
+  result.style.display = 'none';
+  progressBar.style.width = '0%';
+
+  try {
+    const totals = await CRM.importJSONBackup(file, (step, current, total) => {
+      progressText.textContent = `Importando ${step}...`;
+      progressCount.textContent = `${current}/${total}`;
+      const overallPct = Math.round(((step === 'Counter actualizado' ? 1 : 0) + current) / Math.max(1, total) * 100);
+      progressBar.style.width = overallPct + '%';
+    });
+
+    progressBar.style.width = '100%';
+    result.style.display = 'block';
+    result.style.background = 'color-mix(in srgb, #22c55e 10%, transparent)';
+    result.style.color = '#16a34a';
+    result.innerHTML = `<strong>${totals.oportunidades}</strong> oportunidades, <strong>${totals.usuarios}</strong> usuarios y <strong>${totals.log_eventos}</strong> eventos importados correctamente.`;
+    TOAST.success('Backup importado correctamente.');
+    CRM.invalidateCache();
+  } catch(e) {
+    result.style.display = 'block';
+    result.style.background = 'color-mix(in srgb, #ef4444 10%, transparent)';
+    result.style.color = '#dc2626';
+    result.textContent = e.message || 'Error al importar el backup.';
+    TOAST.error(e.message || 'Error al importar.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Restaurar Backup';
+  }
+}
+
 // ══════════════════════════════════════════════
 // CALENDARIO
 // ══════════════════════════════════════════════
