@@ -1518,8 +1518,10 @@ async function renderStats(silent = false) {
   const range = getStatsDateRange();
   const rows = filterByDateRange(allRows, range.from, range.to);
 
-  // Inicializar filtros multi-select con todos los datos (solo la primera vez o si cambiaron)
-  initStatsFilters(allRows);
+  // Inicializar filtros multi-select solo en render inicial (no en silent/onSnapshot)
+  if (!silent) {
+    initStatsFilters(allRows);
+  }
 
   // Aplicar filtros multi-select
   const filteredRows = applyStatsFilters(rows);
