@@ -355,6 +355,13 @@
           <label>Hasta</label>
           <input type="date" id="statsCustomTo" onchange="onStatsCustomChange()">
         </div>
+        <div class="stats-filters" id="statsFilters">
+          <div class="ms-dropdown" id="sf_estado" data-field="estado"></div>
+          <div class="ms-dropdown" id="sf_practica" data-field="practica"></div>
+          <div class="ms-dropdown" id="sf_responsable" data-field="responsable"></div>
+          <div class="ms-dropdown" id="sf_cliente" data-field="cliente"></div>
+          <button class="btn btn-ghost" onclick="statsFiltersReset()" style="font-size:11px;white-space:nowrap;padding:4px 10px">Limpiar</button>
+        </div>
         <div id="statsLoading" class="loading"><div class="spinner"></div> Cargando datos...</div>
         <div id="statsContent" style="display:none">
           <div class="kpi-row" id="statsKpis"></div>

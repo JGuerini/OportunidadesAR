@@ -1189,6 +1189,207 @@ function renderCalendario() {
 }
 
 // ══════════════════════════════════════════════
+// MULTI-SELECT FILTER (Estadísticas)
+// ══════════════════════════════════════════════
+const STATS_FILTER_LABELS = {
+  estado: 'Estados',
+  practica: 'Prácticas',
+  responsable: 'Responsables',
+  cliente: 'Clientes'
+};
+let _statsFilterState = {}; // { estado: Set, practica: Set, ... }
+
+function initStatsFilters(rows) {
+  const fields = ['estado', 'practica', 'responsable', 'cliente'];
+  const allValues = {};
+  fields.forEach(f => { allValues[f] = [...new Set(rows.map(r => r[f]).filter(Boolean))].sort(); });
+
+  // Para estado, usar el orden definido en CRM.ESTADOS
+  if (CRM.ESTADOS) {
+    allValues.estado = CRM.ESTADOS.filter(e => rows.some(r => r.estado === e));
+  }
+
+  // Verificar si los valores cambiaron (para no re-renderizar innecesariamente)
+  const currentKeys = {};
+  fields.forEach(f => { currentKeys[f] = allValues[f].join('|'); });
+  const prevKeys = _statsFilterKeys || {};
+  const changed = fields.some(f => currentKeys[f] !== prevKeys[f]);
+
+  if (!changed && document.querySelector('.ms-option')) return; // Ya inicializado y sin cambios
+
+  _statsFilterKeys = currentKeys;
+
+  // Preservar selecciones previas si siguen siendo válidas
+  const prevState = {};
+  fields.forEach(f => { if (_statsFilterState[f]) prevState[f] = new Set(_statsFilterState[f]); });
+
+  fields.forEach(field => {
+    const container = document.getElementById('sf_' + field);
+    if (!container) return;
+    const options = allValues[field];
+    if (!options || options.length === 0) { container.style.display = 'none'; return; }
+    container.style.display = '';
+
+    // Reset state — all selected by default
+    _statsFilterState[field] = new Set(options);
+
+    // Si había selecciones previas, mantener las que siguen válidas
+    if (prevState[field]) {
+      _statsFilterState[field] = new Set(options.filter(v => prevState[field].has(v)));
+    }
+
+    const label = STATS_FILTER_LABELS[field] || field;
+    container.innerHTML = `
+      <div class="ms-trigger" onclick="toggleMsPanel('${field}')">
+        <span class="ms-trigger-label" id="ms_label_${field}">${label}</span>
+        <span class="ms-arrow">&#9660;</span>
+      </div>
+      <div class="ms-panel" id="ms_panel_${field}">
+        <div class="ms-all-row" onclick="toggleMsAll('${field}', event)">
+          <input type="checkbox" id="ms_all_${field}" checked>
+          <span>Todos</span>
+        </div>
+        ${options.map((v, i) => `
+          <div class="ms-option" data-field="${field}" data-idx="${i}">
+            <input type="checkbox" checked>
+            <span class="ms-option-label">${escapeHtml(v)}</span>
+          </div>
+        `).join('')}
+      </div>`;
+
+    // Bind clicks via JS (más seguro que inline onclick con valores escapados)
+    container.querySelectorAll('.ms-option').forEach(opt => {
+      opt.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const idx = parseInt(this.dataset.idx);
+        const f = this.dataset.field;
+        const cb = this.querySelector('input[type="checkbox"]');
+        const val = this.querySelector('.ms-option-label').textContent;
+        if (cb.checked) {
+          _statsFilterState[f].delete(val);
+          cb.checked = false;
+        } else {
+          _statsFilterState[f].add(val);
+          cb.checked = true;
+        }
+        // Actualizar "Todos"
+        const allBox = document.getElementById('ms_all_' + f);
+        const allOpts = container.querySelectorAll('.ms-option input[type="checkbox"]');
+        const checkedCount = container.querySelectorAll('.ms-option input[type="checkbox"]:checked').length;
+        if (allBox) allBox.checked = checkedCount === allOpts.length;
+        updateMsTrigger(f);
+        renderStats(true);
+      });
+    });
+
+    updateMsTrigger(field);
+  });
+}
+
+function toggleMsPanel(field) {
+  const panel = document.getElementById('ms_panel_' + field);
+  const trigger = panel?.previousElementSibling;
+  const isOpen = panel && panel.style.display === 'block';
+
+  // Cerrar todos los demás paneles primero
+  document.querySelectorAll('.ms-panel').forEach(p => { p.style.display = 'none'; });
+  document.querySelectorAll('.ms-trigger').forEach(t => { t.classList.remove('open'); });
+
+  if (!isOpen && panel) {
+    panel.style.display = 'block';
+    if (trigger) trigger.classList.add('open');
+  }
+}
+
+function toggleMsAll(field, event) {
+  event.stopPropagation();
+  const container = document.getElementById('sf_' + field);
+  if (!container) return;
+  const checkboxes = container.querySelectorAll('.ms-option input[type="checkbox"]');
+  const allBox = document.getElementById('ms_all_' + field);
+  const allChecked = allBox.checked;
+
+  // Toggle: si estaba todo checkeado, descheckear todo
+  if (allChecked) {
+    _statsFilterState[field] = new Set();
+    allBox.checked = false;
+    checkboxes.forEach(cb => { cb.checked = false; });
+  } else {
+    // Checkear todo — recuperar valores de los labels
+    _statsFilterState[field] = new Set();
+    container.querySelectorAll('.ms-option').forEach(opt => {
+      const val = opt.querySelector('.ms-option-label').textContent;
+      _statsFilterState[field].add(val);
+      opt.querySelector('input[type="checkbox"]').checked = true;
+    });
+    allBox.checked = true;
+  }
+
+  updateMsTrigger(field);
+  renderStats(true);
+}
+
+function updateMsTrigger(field) {
+  const label = STATS_FILTER_LABELS[field] || field;
+  const labelEl = document.getElementById('ms_label_' + field);
+  const count = _statsFilterState[field]?.size || 0;
+  const container = document.getElementById('sf_' + field);
+  if (!labelEl || !container) return;
+
+  const allOptions = container.querySelectorAll('.ms-option');
+  const total = allOptions.length;
+
+  if (count === 0) {
+    labelEl.innerHTML = `<span style="color:var(--text-muted)">${label}</span>`;
+  } else if (count === total) {
+    labelEl.innerHTML = label;
+  } else {
+    labelEl.innerHTML = `${label} <span class="ms-trigger-count">${count}</span>`;
+  }
+}
+
+function applyStatsFilters(rows) {
+  return rows.filter(r => {
+    const fields = ['estado', 'practica', 'responsable', 'cliente'];
+    for (const f of fields) {
+      const allowed = _statsFilterState[f];
+      if (!allowed) continue; // No inicializado = sin filtro
+      if (allowed.size === 0) continue; // Todo deseleccionado = sin filtro (mostrar todo)
+      if (r[f] && !allowed.has(r[f])) return false;
+    }
+    return true;
+  });
+}
+
+function statsFiltersReset() {
+  const fields = ['estado', 'practica', 'responsable', 'cliente'];
+  fields.forEach(field => {
+    const container = document.getElementById('sf_' + field);
+    if (!container) return;
+    // Re-setear el Set con todos los valores actuales
+    const newState = new Set();
+    container.querySelectorAll('.ms-option').forEach(opt => {
+      const val = opt.querySelector('.ms-option-label')?.textContent;
+      if (val) newState.add(val);
+      opt.querySelector('input[type="checkbox"]').checked = true;
+    });
+    _statsFilterState[field] = newState;
+    const allBox = document.getElementById('ms_all_' + field);
+    if (allBox) allBox.checked = true;
+    updateMsTrigger(field);
+  });
+  renderStats(true);
+}
+
+// Cerrar paneles al hacer click fuera
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.ms-dropdown')) {
+    document.querySelectorAll('.ms-panel').forEach(p => { p.style.display = 'none'; });
+    document.querySelectorAll('.ms-trigger').forEach(t => { t.classList.remove('open'); });
+  }
+});
+
+// ══════════════════════════════════════════════
 // PERIOD FILTER (Estadísticas)
 // ══════════════════════════════════════════════
 let _statsPeriod = 'all';
@@ -1306,12 +1507,18 @@ async function renderStats(silent = false) {
   const range = getStatsDateRange();
   const rows = filterByDateRange(allRows, range.from, range.to);
 
-  const totalTCV = rows.reduce((s, r) => s + (parseFloat(r.tcvEur) || 0), 0);
-  const probProm = rows.length > 0 ? Math.round(rows.reduce((s, r) => s + (parseFloat(r.probabilidad) || 0), 0) / rows.length) : 0;
-  const enDes = rows.filter(r => r.estado === 'En Desarrollo').length;
+  // Inicializar filtros multi-select con todos los datos (solo la primera vez o si cambiaron)
+  initStatsFilters(allRows);
+
+  // Aplicar filtros multi-select
+  const filteredRows = applyStatsFilters(rows);
+
+  const totalTCV = filteredRows.reduce((s, r) => s + (parseFloat(r.tcvEur) || 0), 0);
+  const probProm = filteredRows.length > 0 ? Math.round(filteredRows.reduce((s, r) => s + (parseFloat(r.probabilidad) || 0), 0) / filteredRows.length) : 0;
+  const enDes = filteredRows.filter(r => r.estado === 'En Desarrollo').length;
 
   document.getElementById('statsKpis').innerHTML = [
-    { v: rows.length, l: 'Total Oportunidades' },
+    { v: filteredRows.length, l: 'Total Oportunidades' },
     { v: fmtEUR(totalTCV), l: 'TCV EUR Total' },
     { v: enDes, l: 'En Desarrollo' },
     { v: probProm + '%', l: 'Prob. Promedio' }
@@ -1319,7 +1526,7 @@ async function renderStats(silent = false) {
 
   const estadoCounts = {}, estadoTCV = {};
   CRM.ESTADOS.forEach(e => { estadoCounts[e] = 0; estadoTCV[e] = 0; });
-  rows.forEach(r => {
+  filteredRows.forEach(r => {
     if (estadoCounts[r.estado] !== undefined) {
       estadoCounts[r.estado]++;
       estadoTCV[r.estado] += parseFloat(r.tcvEur) || 0;
@@ -1348,7 +1555,7 @@ async function renderStats(silent = false) {
   ).join('');
 
   const origenC = {};
-  rows.forEach(r => { if (r.origen) origenC[r.origen] = (origenC[r.origen] || 0) + 1; });
+  filteredRows.forEach(r => { if (r.origen) origenC[r.origen] = (origenC[r.origen] || 0) + 1; });
   const origenK = Object.keys(origenC);
   _statsCharts.origen = new Chart(document.getElementById('chartOrigen'), {
     type: 'pie',
@@ -1357,7 +1564,7 @@ async function renderStats(silent = false) {
   });
 
   const respC = {};
-  rows.forEach(r => { if (r.responsable) respC[r.responsable] = (respC[r.responsable] || 0) + 1; });
+  filteredRows.forEach(r => { if (r.responsable) respC[r.responsable] = (respC[r.responsable] || 0) + 1; });
   const respK = Object.keys(respC).sort((a, b) => respC[b] - respC[a]).slice(0, 8);
   _statsCharts.resp = new Chart(document.getElementById('chartResp'), {
     type: 'bar',
@@ -1366,7 +1573,7 @@ async function renderStats(silent = false) {
   });
 
   const pracC = {};
-  rows.forEach(r => { if (r.practica) pracC[r.practica] = (pracC[r.practica] || 0) + 1; });
+  filteredRows.forEach(r => { if (r.practica) pracC[r.practica] = (pracC[r.practica] || 0) + 1; });
   const pracK = Object.keys(pracC).sort((a, b) => pracC[b] - pracC[a]);
   _statsCharts.prac = new Chart(document.getElementById('chartPractica'), {
     type: 'bar',
@@ -1375,7 +1582,7 @@ async function renderStats(silent = false) {
   });
 
   const indC = {};
-  rows.forEach(r => { if (r.industria) indC[r.industria] = (indC[r.industria] || 0) + 1; });
+  filteredRows.forEach(r => { if (r.industria) indC[r.industria] = (indC[r.industria] || 0) + 1; });
   const indK = Object.keys(indC).sort((a, b) => indC[b] - indC[a]);
   _statsCharts.ind = new Chart(document.getElementById('chartIndustria'), {
     type: 'pie',
