@@ -50,3 +50,60 @@ Desde la version que incluye el commit `9b11a64`, la aplicacion cuenta con una *
 
 - [MDN: Content Security Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP)
 - [MDN: CSP via meta tag](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy)
+
+---
+
+## Auditoria XSS (Cross-Site Scripting)
+
+Desde el commit `13bb97c`, el codigo fue auditado exhaustivamente en busqueda de vulnerabilidades XSS. Se revisaron todos los puntos donde datos controlados por el usuario (ingresados via formularios o almacenados en Firestore) son renderizados en el DOM mediante `innerHTML`.
+
+### Funcion de escape
+
+La aplicacion cuenta con una funcion `escapeHtml()` centralizada que escapa los 5 caracteres criticos:
+
+```js
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+```
+
+Todos los puntos de renderizado de datos dinamicos utilizan esta funcion para sanitizar la salida antes de insertarla en el DOM.
+
+### Vectores auditados y mitigados
+
+| Vector | Severidad original | Mitigacion aplicada |
+|:---|:---:|:---|
+| `oppNombre` / `oppCodigo` en Log de Eventos | Alta | `escapeHtml()` en texto del enlace |
+| `ev.usuario` y `ev.detalle` en Log de Eventos | Media | `escapeHtml()` en usuario y detalle |
+| Mensajes de error en importacion Excel | Media | `escapeHtml()` antes de insertar en innerHTML |
+| URL de SharePoint (`javascript:` injection) | Media | Validacion de protocolo; se bloquean URLs que inicien con `javascript:` |
+| Mensajes de notificaciones Toast | Baja | `escapeHtml()` por defecto en el parametro message |
+| Atributos `data-tip` (notas, fecha de entrega) | Baja | `escapeHtml()` reemplaza escape parcial de comillas |
+
+### Modulos verificados seguros
+
+Los siguientes modulos fueron auditados y confirmados como seguros (todos usan `escapeHtml()` correctamente):
+
+- Formulario de alta y edicion de oportunidades
+- Modal de vista detallada (`verOportunidad`)
+- Tabla "Ver Todas" y "Mis Oportunidades" (incluyendo tooltips)
+- Kanban Board (cards y headers)
+- Calendario (eventos)
+- Estadisticas (KPIs, graficos, filtros)
+- Perfil de usuario
+- Gestion de usuarios (admin)
+- Vista de importacion Excel (preview de datos)
+- Autocompletado de clientes
+- Saludo del dashboard
+
+### Notas
+
+- Los IDs de documentos de Firestore (`r.id`, `u.uid`, `ev.oppId`) se utilizan en handlers inline (`onclick`), pero estos valores son generados por Firebase y solo contienen caracteres alfanumericos seguros, por lo que no representan un vector de explotacion.
+- La CSP proporciona una capa adicional de defensa, aunque con `'unsafe-inline'` en `script-src` la proteccion contra XSS via `innerHTML` depende principalmente del escape correcto de los datos.
+- Se recomienda re-auditar el codigo cuando se agreguen nuevos puntos de renderizado de datos del usuario o se introduzcan nuevas fuentes de entrada.
