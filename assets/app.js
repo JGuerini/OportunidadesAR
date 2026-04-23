@@ -1296,6 +1296,195 @@ function renderCalendario() {
 }
 
 // ══════════════════════════════════════════════
+// MULTI-SELECT FILTERS (Estadísticas)
+// ══════════════════════════════════════════════
+const STATS_FILTER_LABELS = {
+  estado: 'Estados',
+  practica: 'Prácticas',
+  responsable: 'Responsables',
+  cliente: 'Clientes'
+};
+let _statsFilterState = {}; // { estado: Set, practica: Set, ... }
+let _statsFilterKeys = {};
+
+function initStatsFilters(rows) {
+  const fields = ['estado', 'practica', 'responsable', 'cliente'];
+  const allValues = {};
+  fields.forEach(f => { allValues[f] = [...new Set(rows.map(r => r[f]).filter(Boolean))].sort(); });
+
+  if (CRM.ESTADOS) {
+    allValues.estado = CRM.ESTADOS.filter(e => rows.some(r => r.estado === e));
+  }
+
+  const currentKeys = {};
+  fields.forEach(f => { currentKeys[f] = allValues[f].join('|'); });
+  const prevKeys = _statsFilterKeys || {};
+  const changed = fields.some(f => currentKeys[f] !== prevKeys[f]);
+
+  if (!changed && document.querySelector('.ms-option')) return;
+
+  _statsFilterKeys = currentKeys;
+
+  const prevState = {};
+  fields.forEach(f => { if (_statsFilterState[f]) prevState[f] = new Set(_statsFilterState[f]); });
+
+  fields.forEach(field => {
+    const container = document.getElementById('sf_' + field);
+    if (!container) return;
+    const options = allValues[field];
+    if (!options || options.length === 0) { container.style.display = 'none'; return; }
+    container.style.display = '';
+
+    _statsFilterState[field] = new Set(options);
+
+    if (prevState[field]) {
+      _statsFilterState[field] = new Set(options.filter(v => prevState[field].has(v)));
+    }
+
+    const label = STATS_FILTER_LABELS[field] || field;
+    container.innerHTML = `
+      <div class="ms-trigger" onclick="toggleMsPanel('${field}')">
+        <span class="ms-trigger-label" id="ms_label_${field}">${label}</span>
+        <span class="ms-arrow">&#9660;</span>
+      </div>
+      <div class="ms-panel" id="ms_panel_${field}">
+        <div class="ms-all-row" onclick="toggleMsAll('${field}', event)">
+          <input type="checkbox" id="ms_all_${field}" checked>
+          <span>Todos</span>
+        </div>
+        ${options.map((v, i) => `
+          <div class="ms-option" data-field="${field}" data-idx="${i}">
+            <input type="checkbox" checked>
+            <span class="ms-option-label">${escapeHtml(v)}</span>
+          </div>
+        `).join('')}
+      </div>`;
+
+    container.querySelectorAll('.ms-option').forEach(opt => {
+      opt.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const f = this.dataset.field;
+        const cb = this.querySelector('input[type="checkbox"]');
+        const val = this.querySelector('.ms-option-label').textContent;
+        if (cb.checked) {
+          _statsFilterState[f].delete(val);
+          cb.checked = false;
+        } else {
+          _statsFilterState[f].add(val);
+          cb.checked = true;
+        }
+        const allBox = document.getElementById('ms_all_' + f);
+        const allOpts = container.querySelectorAll('.ms-option input[type="checkbox"]');
+        const checkedCount = container.querySelectorAll('.ms-option input[type="checkbox"]:checked').length;
+        if (allBox) allBox.checked = checkedCount === allOpts.length;
+        updateMsTrigger(f);
+        renderStats(true);
+      });
+    });
+
+    updateMsTrigger(field);
+  });
+}
+
+function toggleMsPanel(field) {
+  const panel = document.getElementById('ms_panel_' + field);
+  const trigger = panel?.previousElementSibling;
+  const isOpen = panel && panel.style.display === 'block';
+
+  document.querySelectorAll('.ms-panel').forEach(p => { p.style.display = 'none'; });
+  document.querySelectorAll('.ms-trigger').forEach(t => { t.classList.remove('open'); });
+
+  if (!isOpen && panel) {
+    panel.style.display = 'block';
+    if (trigger) trigger.classList.add('open');
+  }
+}
+
+function toggleMsAll(field, event) {
+  event.stopPropagation();
+  const container = document.getElementById('sf_' + field);
+  if (!container) return;
+  const checkboxes = container.querySelectorAll('.ms-option input[type="checkbox"]');
+  const allBox = document.getElementById('ms_all_' + field);
+  const allChecked = allBox.checked;
+
+  if (allChecked) {
+    _statsFilterState[field] = new Set();
+    allBox.checked = false;
+    checkboxes.forEach(cb => { cb.checked = false; });
+  } else {
+    _statsFilterState[field] = new Set();
+    container.querySelectorAll('.ms-option').forEach(opt => {
+      const val = opt.querySelector('.ms-option-label').textContent;
+      _statsFilterState[field].add(val);
+      opt.querySelector('input[type="checkbox"]').checked = true;
+    });
+    allBox.checked = true;
+  }
+
+  updateMsTrigger(field);
+  renderStats(true);
+}
+
+function updateMsTrigger(field) {
+  const label = STATS_FILTER_LABELS[field] || field;
+  const labelEl = document.getElementById('ms_label_' + field);
+  const count = _statsFilterState[field]?.size || 0;
+  const container = document.getElementById('sf_' + field);
+  if (!labelEl || !container) return;
+
+  const allOptions = container.querySelectorAll('.ms-option');
+  const total = allOptions.length;
+
+  if (count === 0) {
+    labelEl.innerHTML = `<span style="color:var(--text-muted)">${label}</span>`;
+  } else if (count === total) {
+    labelEl.innerHTML = label;
+  } else {
+    labelEl.innerHTML = `${label} <span class="ms-trigger-count">${count}</span>`;
+  }
+}
+
+function applyStatsFilters(rows) {
+  return rows.filter(r => {
+    const fields = ['estado', 'practica', 'responsable', 'cliente'];
+    for (const f of fields) {
+      const allowed = _statsFilterState[f];
+      if (!allowed) continue;
+      if (allowed.size === 0) continue;
+      if (r[f] && !allowed.has(r[f])) return false;
+    }
+    return true;
+  });
+}
+
+function statsFiltersReset() {
+  const fields = ['estado', 'practica', 'responsable', 'cliente'];
+  fields.forEach(field => {
+    const container = document.getElementById('sf_' + field);
+    if (!container) return;
+    const newState = new Set();
+    container.querySelectorAll('.ms-option').forEach(opt => {
+      const val = opt.querySelector('.ms-option-label')?.textContent;
+      if (val) newState.add(val);
+      opt.querySelector('input[type="checkbox"]').checked = true;
+    });
+    _statsFilterState[field] = newState;
+    const allBox = document.getElementById('ms_all_' + field);
+    if (allBox) allBox.checked = true;
+    updateMsTrigger(field);
+  });
+  renderStats(true);
+}
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.ms-dropdown')) {
+    document.querySelectorAll('.ms-panel').forEach(p => { p.style.display = 'none'; });
+    document.querySelectorAll('.ms-trigger').forEach(t => { t.classList.remove('open'); });
+  }
+});
+
+// ══════════════════════════════════════════════
 // PERIOD FILTER (Estadísticas)
 // ══════════════════════════════════════════════
 let _statsPeriod = 'all';
