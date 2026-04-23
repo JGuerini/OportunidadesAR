@@ -422,8 +422,10 @@ async function checkEntregaProxima() {
     });
     if (!notifs.length) return;
     const batch = firebase.firestore().batch();
-    const colRef = firebase.firestore().collection('notificaciones');
-    notifs.forEach(n => batch.add(colRef, { ...n, leida: false, fecha: new Date().toISOString() }));
+    notifs.forEach(n => {
+      const ref = firebase.firestore().collection('notificaciones').doc();
+      batch.set(ref, { ...n, leida: false, fecha: new Date().toISOString() });
+    });
     await batch.commit();
   } catch(e) { console.error('Error check entrega proxima:', e); }
 }
@@ -449,8 +451,10 @@ async function checkSinActualizar() {
     });
     if (!notifs.length) return;
     const batch = firebase.firestore().batch();
-    const colRef = firebase.firestore().collection('notificaciones');
-    notifs.forEach(n => batch.add(colRef, { ...n, leida: false, fecha: new Date().toISOString() }));
+    notifs.forEach(n => {
+      const ref = firebase.firestore().collection('notificaciones').doc();
+      batch.set(ref, { ...n, leida: false, fecha: new Date().toISOString() });
+    });
     await batch.commit();
   } catch(e) { console.error('Error check sin actualizar:', e); }
 }

@@ -20,15 +20,8 @@ const firebaseConfig = {
 // Inicializar Firebase
 firebase.initializeApp(firebaseConfig);
 
-// Habilitar persistencia offline de Firestore
-firebase.firestore().enablePersistence({ synchronizeTabs: true })
-  .catch(err => {
-    if (err.code === 'failed-precondition') {
-      console.warn('Persistencia offline no disponible: multiples tabs abiertos.');
-    } else if (err.code === 'unimplemented') {
-      console.warn('Persistencia offline no soportada en este navegador.');
-    }
-  });
+// Habilitar persistencia offline de Firestore (método moderno)
+firebase.firestore().settings({ cache: firebase.firestore().persistentSettingsDefault });
 
 // Exportar referencias globales
 window.db   = firebase.firestore();
