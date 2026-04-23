@@ -1514,12 +1514,14 @@ function infoRow(label, value) {
 
 function updateThemeUI() {
   const isDark = THEME.getSavedTheme() === 'dark';
-  const toggle = document.getElementById('themeToggle');
-  const knob   = document.getElementById('themeKnob');
-  const label  = document.getElementById('themeLabel');
-  if (toggle) toggle.style.background = isDark ? 'var(--accent)' : '#ccc';
-  if (knob)   knob.style.transform    = isDark ? 'translateX(20px)' : 'translateX(0)';
-  if (label)  label.textContent       = isDark ? 'Oscuro' : 'Claro';
+  const icon = document.getElementById('themeIcon');
+  if (icon) {
+    if (isDark) {
+      icon.innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 18 18"><path d="M15.4 11.3A7 7 0 0 1 6.7 2.6a7 7 0 1 0 8.7 8.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    } else {
+      icon.innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 18 18"><circle cx="9" cy="9" r="3.5"/><path d="M9 1v2M9 15v2M1 9h2M15 9h2M3.3 3.3l1.4 1.4M13.3 13.3l1.4 1.4M3.3 14.7l1.4-1.4M13.3 4.7l1.4-1.4" stroke-linecap="round"/></svg>';
+    }
+  }
 }
 
 function handleThemeToggle() {
