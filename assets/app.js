@@ -1442,12 +1442,13 @@ function initStatsFilters(rows) {
         const f = this.dataset.field;
         const cb = this.querySelector('input[type="checkbox"]');
         const val = this.querySelector('.ms-option-label').textContent;
+        // If click was on the label (not checkbox), toggle manually
+        if (e.target !== cb) cb.checked = !cb.checked;
+        // Now cb.checked reflects the intended state in all cases
         if (cb.checked) {
-          _statsFilterState[f].delete(val);
-          cb.checked = false;
-        } else {
           _statsFilterState[f].add(val);
-          cb.checked = true;
+        } else {
+          _statsFilterState[f].delete(val);
         }
         const allBox = document.getElementById('ms_all_' + f);
         const allOpts = container.querySelectorAll('.ms-option input[type="checkbox"]');
@@ -1482,20 +1483,21 @@ function toggleMsAll(field, event) {
   if (!container) return;
   const checkboxes = container.querySelectorAll('.ms-option input[type="checkbox"]');
   const allBox = document.getElementById('ms_all_' + field);
+  // If click was on the label "Todos" (not the checkbox), toggle manually
+  if (event.target !== allBox) allBox.checked = !allBox.checked;
+  // Now allBox.checked reflects the intended state
   const allChecked = allBox.checked;
 
   if (allChecked) {
-    _statsFilterState[field] = new Set();
-    allBox.checked = false;
-    checkboxes.forEach(cb => { cb.checked = false; });
-  } else {
     _statsFilterState[field] = new Set();
     container.querySelectorAll('.ms-option').forEach(opt => {
       const val = opt.querySelector('.ms-option-label').textContent;
       _statsFilterState[field].add(val);
       opt.querySelector('input[type="checkbox"]').checked = true;
     });
-    allBox.checked = true;
+  } else {
+    _statsFilterState[field] = new Set();
+    checkboxes.forEach(cb => { cb.checked = false; });
   }
 
   updateMsTrigger(field);
@@ -1678,12 +1680,20 @@ async function renderStats(silent = false) {
   const range = getStatsDateRange();
   const rows = filterByDateRange(allRows, range.from, range.to);
 
-  const totalTCV = rows.reduce((s, r) => s + (parseFloat(r.tcvEur) || 0), 0);
-  const probProm = rows.length > 0 ? Math.round(rows.reduce((s, r) => s + (parseFloat(r.probabilidad) || 0), 0) / rows.length) : 0;
-  const enDes = rows.filter(r => r.estado === 'En Desarrollo').length;
+  // Inicializar filtros multi-select solo en render inicial (no en silent/onSnapshot)
+  if (!silent) {
+    initStatsFilters(allRows);
+  }
+
+  // Aplicar filtros multi-select
+  const filteredRows = applyStatsFilters(rows);
+
+  const totalTCV = filteredRows.reduce((s, r) => s + (parseFloat(r.tcvEur) || 0), 0);
+  const probProm = filteredRows.length > 0 ? Math.round(filteredRows.reduce((s, r) => s + (parseFloat(r.probabilidad) || 0), 0) / filteredRows.length) : 0;
+  const enDes = filteredRows.filter(r => r.estado === 'En Desarrollo').length;
 
   document.getElementById('statsKpis').innerHTML = [
-    { v: rows.length, l: 'Total Oportunidades' },
+    { v: filteredRows.length, l: 'Total Oportunidades' },
     { v: fmtEUR(totalTCV), l: 'TCV EUR Total' },
     { v: enDes, l: 'En Desarrollo' },
     { v: probProm + '%', l: 'Prob. Promedio' }
@@ -1691,7 +1701,7 @@ async function renderStats(silent = false) {
 
   const estadoCounts = {}, estadoTCV = {};
   CRM.ESTADOS.forEach(e => { estadoCounts[e] = 0; estadoTCV[e] = 0; });
-  rows.forEach(r => {
+  filteredRows.forEach(r => {
     if (estadoCounts[r.estado] !== undefined) {
       estadoCounts[r.estado]++;
       estadoTCV[r.estado] += parseFloat(r.tcvEur) || 0;
@@ -1720,7 +1730,7 @@ async function renderStats(silent = false) {
   ).join('');
 
   const origenC = {};
-  rows.forEach(r => { if (r.origen) origenC[r.origen] = (origenC[r.origen] || 0) + 1; });
+  filteredRows.forEach(r => { if (r.origen) origenC[r.origen] = (origenC[r.origen] || 0) + 1; });
   const origenK = Object.keys(origenC);
   _statsCharts.origen = new Chart(document.getElementById('chartOrigen'), {
     type: 'pie',
@@ -1729,7 +1739,7 @@ async function renderStats(silent = false) {
   });
 
   const respC = {};
-  rows.forEach(r => { if (r.responsable) respC[r.responsable] = (respC[r.responsable] || 0) + 1; });
+  filteredRows.forEach(r => { if (r.responsable) respC[r.responsable] = (respC[r.responsable] || 0) + 1; });
   const respK = Object.keys(respC).sort((a, b) => respC[b] - respC[a]).slice(0, 8);
   _statsCharts.resp = new Chart(document.getElementById('chartResp'), {
     type: 'bar',
@@ -1738,7 +1748,7 @@ async function renderStats(silent = false) {
   });
 
   const pracC = {};
-  rows.forEach(r => { if (r.practica) pracC[r.practica] = (pracC[r.practica] || 0) + 1; });
+  filteredRows.forEach(r => { if (r.practica) pracC[r.practica] = (pracC[r.practica] || 0) + 1; });
   const pracK = Object.keys(pracC).sort((a, b) => pracC[b] - pracC[a]);
   _statsCharts.prac = new Chart(document.getElementById('chartPractica'), {
     type: 'bar',
@@ -1747,7 +1757,7 @@ async function renderStats(silent = false) {
   });
 
   const indC = {};
-  rows.forEach(r => { if (r.industria) indC[r.industria] = (indC[r.industria] || 0) + 1; });
+  filteredRows.forEach(r => { if (r.industria) indC[r.industria] = (indC[r.industria] || 0) + 1; });
   const indK = Object.keys(indC).sort((a, b) => indC[b] - indC[a]);
   _statsCharts.ind = new Chart(document.getElementById('chartIndustria'), {
     type: 'pie',
@@ -2875,7 +2885,7 @@ function initApp() {
 
   // Connection check
   checkConexion();
-  setInterval(checkConexion, 300000); // 5 minutos
+  setInterval(checkConexion, 600000); // 10 minutos
 
   // Real-time listener: si cambian datos en Firestore, actualizar
   CRM.onOportunidadesChange((freshData) => {
