@@ -180,6 +180,7 @@ body.dark-mode .row-tooltip {
   box-shadow: var(--glass-shadow);
   transition: background 0.3s;
   position: relative; z-index: 10;
+  overflow: visible;
 }
 body.dark-mode .topbar { background: var(--glass-bg); }
 .topbar-breadcrumb { font-size: 12px; color: var(--text-muted); }
