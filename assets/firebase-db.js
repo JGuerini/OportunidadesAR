@@ -10,12 +10,12 @@ const COLUMNS = [
   'probabilidad', 'pm', 'fechaCreacion', 'fechaModificacion'
 ];
 
-const ESTADOS  = ['En Desarrollo', 'Entregada', 'Pausa', 'No Go', 'Cancelada', 'Perdida', 'Ganada'];
-const ORIGENES = ['Otro', 'Proyecto', 'Renovación', 'RFP'];
+const ESTADOS  = ['En Desarrollo', 'Entregada', 'Finalizada', 'Pausa', 'No Go', 'Cancelada', 'Perdida', 'Ganada'];
+const ORIGENES = ['Fertilización', 'Otro', 'Proyecto', 'Renovación', 'RFP'];
 const ESTADO_COLORS = {
   'En Desarrollo': '#fde68a',
   'Entregada':     '#93c5fd',
-
+  'Finalizada':    '#86efac',
   'Pausa':         '#fdba74',
   'No Go':        '#94a3b8',
   'Cancelada':     '#94a3b8',
@@ -34,14 +34,6 @@ function invalidateCache() {
   if (_listenerActive) return;
   _cache = null;
   _cacheTs = 0;
-}
-
-// ── CLIENTES ÚNICOS (para autocomplete) ──
-function getClientesUnicos() {
-  if (!_cache) return [];
-  return [...new Set(_cache.map(r => r.cliente).filter(Boolean))].sort((a, b) =>
-    a.localeCompare(b, 'es', { sensitivity: 'base' })
-  );
 }
 
 // ── MAPEO: Firestore doc → objeto plano ──
@@ -297,132 +289,6 @@ function downloadExcel(rows) {
   }
 }
 
-// ── EXPORT JSON BACKUP ──
-async function exportJSONBackup() {
-  try {
-    const snap = await firebase.firestore().collection('oportunidades').orderBy('codigo').get();
-    const oportunidades = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-    const counterSnap = await firebase.firestore().collection('counters').doc('oportunidades').get();
-    const counter = counterSnap.exists ? counterSnap.data() : { nextId: 1 };
-
-    const logSnap = await firebase.firestore().collection('log_eventos').orderBy('fecha').get();
-    const logEventos = logSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-    const usersSnap = await firebase.firestore().collection('usuarios').orderBy('nombre').get();
-    const usuarios = usersSnap.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
-
-    const backup = {
-      _meta: {
-        version: 2,
-        fecha: new Date().toISOString(),
-        generadoPor: 'OportunidadesAR CRM',
-        coleccion: {
-          oportunidades: oportunidades.length,
-          log_eventos: logEventos.length,
-          usuarios: usuarios.length
-        }
-      },
-      counter: counter,
-      oportunidades: oportunidades,
-      log_eventos: logEventos,
-      usuarios: usuarios
-    };
-
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const fecha = new Date().toISOString().slice(0, 10);
-    a.download = `backup_oportunidades_${fecha}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  } catch(e) {
-    console.error('Error exportando JSON backup:', e);
-    throw e;
-  }
-}
-
-// ── IMPORT JSON BACKUP ──
-async function importJSONBackup(file, onProgress) {
-  const text = await file.text();
-  let backup;
-  try {
-    backup = JSON.parse(text);
-  } catch(e) {
-    throw new Error('Archivo JSON invalido.');
-  }
-  if (!backup._meta || !backup.oportunidades) {
-    throw new Error('El archivo no es un backup valido de OportunidadesAR.');
-  }
-
-  const batchMax = 500;
-  let totalOps = 0, totalLog = 0, totalUsers = 0;
-
-  // 1) Counter
-  if (backup.counter) {
-    const counterRef = firebase.firestore().collection('counters').doc('oportunidades');
-    await counterRef.set(backup.counter);
-    if (onProgress) onProgress('Counter actualizado', 0, 0);
-  }
-
-  // 2) Oportunidades
-  if (backup.oportunidades && backup.oportunidades.length > 0) {
-    const ops = backup.oportunidades;
-    for (let i = 0; i < ops.length; i += batchMax) {
-      const batch = firebase.firestore().batch();
-      const chunk = ops.slice(i, i + batchMax);
-      chunk.forEach(opp => {
-        const ref = firebase.firestore().collection('oportunidades').doc(opp.id);
-        const data = { ...opp };
-        delete data.id;
-        batch.set(ref, data);
-      });
-      await batch.commit();
-      totalOps += chunk.length;
-      if (onProgress) onProgress('Oportunidades', totalOps, ops.length);
-    }
-  }
-
-  // 3) Log de eventos
-  if (backup.log_eventos && backup.log_eventos.length > 0) {
-    const logs = backup.log_eventos;
-    for (let i = 0; i < logs.length; i += batchMax) {
-      const batch = firebase.firestore().batch();
-      const chunk = logs.slice(i, i + batchMax);
-      chunk.forEach(ev => {
-        const ref = firebase.firestore().collection('log_eventos').doc(ev.id);
-        const data = { ...ev };
-        delete data.id;
-        batch.set(ref, data);
-      });
-      await batch.commit();
-      totalLog += chunk.length;
-      if (onProgress) onProgress('Eventos', totalLog, logs.length);
-    }
-  }
-
-  // 4) Usuarios (solo datos de perfil, no Auth — las cuentas se crean por separado)
-  if (backup.usuarios && backup.usuarios.length > 0) {
-    const users = backup.usuarios;
-    for (let i = 0; i < users.length; i += batchMax) {
-      const batch = firebase.firestore().batch();
-      const chunk = users.slice(i, i + batchMax);
-      chunk.forEach(u => {
-        const ref = firebase.firestore().collection('usuarios').doc(u.uid);
-        const data = { ...u };
-        delete data.uid;
-        batch.set(ref, data);
-      });
-      await batch.commit();
-      totalUsers += chunk.length;
-      if (onProgress) onProgress('Usuarios', totalUsers, users.length);
-    }
-  }
-
-  return { oportunidades: totalOps, log_eventos: totalLog, usuarios: totalUsers };
-}
-
 // ── LOG DE EVENTOS ──
 async function logEvento(accion, detalle, oppId, oppCodigo, oppNombre) {
   try {
@@ -472,10 +338,129 @@ async function getLogEventos(limit = 100) {
   }
 }
 
+// ── NOTIFICACIONES ──
+async function createNotificacion(usuarioUid, tipo, titulo, mensaje, oppId, oppNombre) {
+  try {
+    await firebase.firestore().collection('notificaciones').add({
+      usuarioUid, tipo, titulo, mensaje,
+      oppId: oppId || '', oppNombre: oppNombre || '',
+      leida: false, fecha: new Date().toISOString()
+    });
+  } catch(e) { console.error('Error creando notificacion:', e); }
+}
+
+function onNotificacionesChange(usuarioUid, callback) {
+  return firebase.firestore().collection('notificaciones')
+    .where('usuarioUid', '==', usuarioUid)
+    .orderBy('fecha', 'desc')
+    .limit(30)
+    .onSnapshot(snap => {
+      callback(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, err => { console.error('Error en listener de notificaciones:', err); });
+}
+
+async function markNotificacionLeida(notifId) {
+  try { await firebase.firestore().collection('notificaciones').doc(notifId).delete(); }
+  catch(e) { console.error('Error marcando notificacion:', e); }
+}
+
+async function markAllNotificacionesLeidas(notifIds) {
+  if (!notifIds.length) return;
+  const batch = firebase.firestore().batch();
+  notifIds.forEach(id => batch.delete(firebase.firestore().collection('notificaciones').doc(id)));
+  await batch.commit();
+}
+
+// ── NOTIFICATION TRIGGERS ──
+const ESTADOS_FINALES = ['Ganada', 'Perdida', 'No Go', 'Cancelada'];
+
+async function notifyAsignacion(opp, creatorUid) {
+  if (!opp.responsable || opp.responsableUid === creatorUid) return;
+  const allUsers = await AUTH.getAllUsers();
+  const targetUser = allUsers.find(u => u.nombre === opp.responsable);
+  if (!targetUser) return;
+  createNotificacion(targetUser.uid, 'nueva_asignacion',
+    'Nueva oportunidad asignada',
+    `Te asignaron la oportunidad "${opp.nombre || opp.codigo}"`,
+    opp.id, opp.nombre);
+}
+
+async function notifyEdicionTercero(opp, editorUid) {
+  if (!opp.responsable || opp.responsableUid === editorUid) return;
+  createNotificacion(opp.responsableUid, 'edicion_tercero',
+    'Oportunidad modificada',
+    `${AUTH.getSession()?.nombre || 'Alguien'} editó tu oportunidad "${opp.nombre || opp.codigo}"`,
+    opp.id, opp.nombre);
+}
+
+async function checkEntregaProxima() {
+  try {
+    const snap = await firebase.firestore().collection('oportunidades').get();
+    const allUsers = await AUTH.getAllUsers();
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    const notifs = [];
+    snap.docs.forEach(doc => {
+      const opp = doc.data();
+      if (!opp.fechaEntrega || ESTADOS_FINALES.includes(opp.estado)) return;
+      const fechaEntrega = new Date(opp.fechaEntrega + 'T00:00:00');
+      const diffDays = Math.ceil((fechaEntrega - hoy) / (1000 * 60 * 60 * 24));
+      if (diffDays < 0 || diffDays > 3) return;
+      const targets = [];
+      if (opp.responsable) {
+        const t = allUsers.find(u => u.nombre === opp.responsable);
+        if (t) targets.push(t.uid);
+      }
+      allUsers.filter(u => u.perfil === 'admin' && u.activo !== false).forEach(u => {
+        if (!targets.includes(u.uid)) targets.push(u.uid);
+      });
+      const diasTexto = diffDays === 0 ? 'hoy' : diffDays === 1 ? 'mañana' : `en ${diffDays} días`;
+      targets.forEach(uid => {
+        notifs.push({ usuarioUid: uid, tipo: 'entrega_proxima', titulo: 'Entrega próxima',
+          mensaje: `"${opp.nombre || opp.codigo}" se entrega ${diasTexto}`,
+          oppId: doc.id, oppNombre: opp.nombre || '' });
+      });
+    });
+    if (!notifs.length) return;
+    const batch = firebase.firestore().batch();
+    const colRef = firebase.firestore().collection('notificaciones');
+    notifs.forEach(n => batch.add(colRef, { ...n, leida: false, fecha: new Date().toISOString() }));
+    await batch.commit();
+  } catch(e) { console.error('Error check entrega proxima:', e); }
+}
+
+async function checkSinActualizar() {
+  try {
+    const snap = await firebase.firestore().collection('oportunidades').get();
+    const allUsers = await AUTH.getAllUsers();
+    const now = new Date();
+    const notifs = [];
+    snap.docs.forEach(doc => {
+      const opp = doc.data();
+      if (!opp.responsable || ESTADOS_FINALES.includes(opp.estado)) return;
+      if (!opp.fechaModificacion && !opp.fechaCreacion) return;
+      const lastUpdate = new Date(opp.fechaModificacion || opp.fechaCreacion);
+      const diffDays = Math.floor((now - lastUpdate) / (1000 * 60 * 60 * 24));
+      if (diffDays < 15) return;
+      const t = allUsers.find(u => u.nombre === opp.responsable);
+      if (!t) return;
+      notifs.push({ usuarioUid: t.uid, tipo: 'sin_actualizar', titulo: 'Oportunidad sin actualizar',
+        mensaje: `"${opp.nombre || opp.codigo}" lleva ${diffDays} días sin modificaciones`,
+        oppId: doc.id, oppNombre: opp.nombre || '' });
+    });
+    if (!notifs.length) return;
+    const batch = firebase.firestore().batch();
+    const colRef = firebase.firestore().collection('notificaciones');
+    notifs.forEach(n => batch.add(colRef, { ...n, leida: false, fecha: new Date().toISOString() }));
+    await batch.commit();
+  } catch(e) { console.error('Error check sin actualizar:', e); }
+}
+
 window.CRM = {
   getData, addOportunidad, updateOportunidad, deleteOportunidad,
-  getOportunidad, downloadExcel, exportJSONBackup, importJSONBackup,
-  onOportunidadesChange, getNextCodigo,
+  getOportunidad, downloadExcel, onOportunidadesChange, getNextCodigo,
   logEvento, getLogEventos, getLogByOppId, getClientesUnicos,
+  createNotificacion, onNotificacionesChange, markNotificacionLeida, markAllNotificacionesLeidas,
+  notifyAsignacion, notifyEdicionTercero, checkEntregaProxima, checkSinActualizar,
+  exportJSONBackup, importJSONBackup,
   COLUMNS, ESTADOS, ORIGENES, ESTADO_COLORS, invalidateCache
 };

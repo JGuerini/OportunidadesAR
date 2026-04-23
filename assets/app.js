@@ -228,7 +228,7 @@ function canEdit(r) {
 }
 
 function badgeEstado(e) {
-  return { 'En Desarrollo': 'badge-desarrollo', 'Entregada': 'badge-entregada', 'Pausa': 'badge-pausa', 'No Go': 'badge-nogo', 'Cancelada': 'badge-cancelada', 'Perdida': 'badge-perdido', 'Ganada': 'badge-ganado' }[e] || '';
+  return { 'En Desarrollo': 'badge-desarrollo', 'Entregada': 'badge-entregada', 'Finalizada': 'badge-finalizada', 'Pausa': 'badge-pausa', 'No Go': 'badge-nogo', 'Cancelada': 'badge-cancelada', 'Perdida': 'badge-perdido', 'Ganada': 'badge-ganado' }[e] || '';
 }
 
 function showAlert(id, msg, type) {
@@ -276,7 +276,7 @@ const TOAST = (() => {
     toast.className = `toast toast-${type}`;
     toast.innerHTML =
       '<span class="toast-icon">' + (ICONS[type] || ICONS.info) + '</span>' +
-      '<span class="toast-msg">' + escapeHtml(message) + '</span>' +
+      '<span class="toast-msg">' + message + '</span>' +
       '<button class="toast-close">\u2715</button>';
 
     // Cerrar con boton
@@ -367,6 +367,101 @@ function onPageEnterSilent(page) {
 }
 
 // ══════════════════════════════════════════════
+// NOTIFICATIONS
+// ══════════════════════════════════════════════
+const NOTIF = {
+  _notifs: [],
+  _open: false,
+
+  init() {
+    const session = AUTH.getSession();
+    if (!session) return;
+    CRM.onNotificacionesChange(session.uid, (notifs) => {
+      this._notifs = notifs;
+      this._render();
+    });
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+      if (this._open && !e.target.closest('#notifBellBtn') && !e.target.closest('#notifPanel')) {
+        this.close();
+      }
+    });
+  },
+
+  toggle() {
+    this._open ? this.close() : this.open();
+  },
+
+  open() {
+    this._open = true;
+    document.getElementById('notifPanel').style.display = 'block';
+  },
+
+  close() {
+    this._open = false;
+    document.getElementById('notifPanel').style.display = 'none';
+  },
+
+  _render() {
+    const badge = document.getElementById('notifBadge');
+    const count = this._notifs.length;
+    if (count > 0) {
+      badge.style.display = 'flex';
+      badge.textContent = count > 9 ? '9+' : count;
+    } else {
+      badge.style.display = 'none';
+    }
+    const list = document.getElementById('notifList');
+    const empty = document.getElementById('notifEmpty');
+    if (count === 0) {
+      list.innerHTML = '';
+      empty.style.display = 'flex';
+      return;
+    }
+    empty.style.display = 'none';
+    const ICONS = { entrega_proxima: '\u23F0', sin_actualizar: '\u26A0', edicion_tercero: '\u270F', nueva_asignacion: '\u2795' };
+    list.innerHTML = this._notifs.map(n => {
+      const icon = ICONS[n.tipo] || '\uD83D\uDD14';
+      const time = this._timeAgo(n.fecha);
+      return `<div class="notif-item" onclick="NOTIF.clickNotif('${n.id}','${n.oppId}')">
+        <div class="notif-icon ${escapeHtml(n.tipo)}">${icon}</div>
+        <div class="notif-body">
+          <div class="notif-title">${escapeHtml(n.titulo)}</div>
+          <div class="notif-msg">${escapeHtml(n.mensaje)}</div>
+          <div class="notif-time">${time}</div>
+        </div>
+      </div>`;
+    }).join('');
+  },
+
+  async clickNotif(notifId, oppId) {
+    await CRM.markNotificacionLeida(notifId);
+    if (oppId) verOportunidad(oppId);
+    this.close();
+  },
+
+  async markAllRead() {
+    const ids = this._notifs.map(n => n.id);
+    await CRM.markAllNotificacionesLeidas(ids);
+    TOAST.success('Notificaciones eliminadas.');
+  },
+
+  _timeAgo(dateStr) {
+    const now = new Date();
+    const date = new Date(dateStr);
+    const diffMs = now - date;
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'Ahora';
+    if (diffMin < 60) return `Hace ${diffMin} min`;
+    const diffH = Math.floor(diffMin / 60);
+    if (diffH < 24) return `Hace ${diffH}h`;
+    const diffD = Math.floor(diffH / 24);
+    if (diffD < 7) return `Hace ${diffD}d`;
+    return date.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' });
+  }
+};
+
+// ══════════════════════════════════════════════
 // STATUS CHECK
 // ══════════════════════════════════════════════
 async function checkConexion() {
@@ -392,27 +487,19 @@ function setStatus(state) {
 async function renderHome() {
   updateGreeting();
   const rows = await CRM.getData();
-  const activas = rows.filter(r => ['En Desarrollo', 'Pausa', 'Entregada'].includes(r.estado)).length;
+  const totalTCV = rows.reduce((s, r) => s + (parseFloat(r.tcvEur) || 0), 0);
   const enDes = rows.filter(r => r.estado === 'En Desarrollo').length;
-  const entregadas = rows.filter(r => r.estado === 'Entregada').length;
-
-  // Nuevas este mes: fechaInicio cae en el mes actual
-  const ahora = new Date();
-  const mesActual = ahora.getMonth();
-  const anioActual = ahora.getFullYear();
-  const nuevasMes = rows.filter(r => {
-    if (!r.fechaInicio) return false;
-    const f = new Date(r.fechaInicio + 'T12:00:00');
-    return f.getMonth() === mesActual && f.getFullYear() === anioActual;
-  }).length;
+  const ganadas  = rows.filter(r => r.estado === 'Ganada').length;
+  const perdidas = rows.filter(r => r.estado === 'Perdida').length;
+  const winRate  = (ganadas + perdidas) > 0 ? Math.round(ganadas / (ganadas + perdidas) * 100) : 0;
 
   const homeStats = document.getElementById('homeStats');
   if (homeStats) {
     homeStats.innerHTML = [
-      { v: activas, l: 'Oportunidades activas' },
+      { v: rows.length, l: 'Total Opor.' },
       { v: enDes, l: 'En Desarrollo' },
-      { v: nuevasMes, l: 'Nuevas este mes' },
-      { v: entregadas, l: 'Oportunidades entregadas' }
+      { v: fmtEUR(totalTCV), l: 'TCV EUR Total' },
+      { v: winRate + '%', l: 'Win Rate' }
     ].map(s => `<div class="qs-card"><div class="qs-value">${s.v}</div><div class="qs-label">${s.l}</div></div>`).join('');
   }
 
@@ -434,26 +521,14 @@ async function renderHome() {
     ).join('');
   }
 
-  // Oportunidades próximas a entregar: con fechaEntrega futura, ordenadas de más próxima a más lejana
-  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-  const proximas = rows
-    .filter(r => r.fechaEntrega && new Date(r.fechaEntrega + 'T23:59:59') >= hoy)
-    .sort((a, b) => new Date(a.fechaEntrega) - new Date(b.fechaEntrega))
-    .slice(0, 5);
+  const recientes = rows.slice(0, 5);
   const recientesContent = document.getElementById('recientesContent');
   if (recientesContent) {
-    recientesContent.innerHTML = proximas.length === 0
-      ? '<div class="empty"><div class="empty-text">No hay entregas próximas</div></div>'
-      : `<table><thead><tr><th>Cliente</th><th>Nombre</th><th>Entrega</th></tr></thead><tbody>${proximas.map(r => {
-          const dias = Math.ceil((new Date(r.fechaEntrega) - hoy) / 86400000);
-          const urgencia = dias <= 3 ? 'color:#ef4444;font-weight:700' : dias <= 7 ? 'color:#f59e0b;font-weight:600' : 'color:var(--text-muted)';
-          return `<tr><td style="font-weight:600">${escapeHtml(r.cliente) || '—'}</td><td>${escapeHtml(r.nombre) || '—'}</td><td style="${urgencia}">${fmtFecha(r.fechaEntrega)}</td></tr>`;
-        }).join('')}</tbody></table>
-        <div style="display:flex;gap:12px;margin-top:10px;font-size:10px;color:var(--text-muted);font-weight:500;letter-spacing:0.02em">
-          <span style="display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:#ef4444;flex-shrink:0"></span> 3 días o menos</span>
-          <span style="display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;flex-shrink:0"></span> 7 días o menos</span>
-          <span style="display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:var(--text-muted);opacity:0.5;flex-shrink:0"></span> Más de 7 días</span>
-        </div>`;
+    recientesContent.innerHTML = recientes.length === 0
+      ? '<div class="empty"><div class="empty-text">Sin oportunidades aún</div></div>'
+      : `<table><thead><tr><th>Nombre</th><th>Cliente</th><th>Estado</th></tr></thead><tbody>${recientes.map(r =>
+          `<tr><td>${escapeHtml(r.nombre) || '—'}</td><td style="color:var(--text-muted)">${escapeHtml(r.cliente) || '—'}</td><td><span class="badge ${badgeEstado(r.estado)}">${escapeHtml(r.estado) || '—'}</span></td></tr>`
+        ).join('')}</tbody></table>`;
   }
 }
 
@@ -604,6 +679,11 @@ async function handleNueva(e) {
       pm:           parseLocalizedNumber(document.getElementById('n_pm').value) || 0
     });
     CRM.logEvento('creacion', 'Creó la oportunidad', id, '', document.getElementById('n_nombre').value);
+    // Notify assignment
+    CRM.getOportunidad(id).then(opp => {
+      const session = AUTH.getSession();
+      if (opp && session) CRM.notifyAsignacion(opp, session.uid);
+    });
     TOAST.success('Oportunidad guardada exitosamente.');
     resetNueva();
   } catch(err) {
@@ -750,6 +830,13 @@ async function handleUpdate(e) {
     }
     TOAST.success('Oportunidad actualizada correctamente.');
     closeEditModal();
+    // Notify edit by third party
+    const session = AUTH.getSession();
+    if (opp && session && opp.responsableUid !== session.uid) {
+      CRM.getOportunidad(id).then(updatedOpp => {
+        if (updatedOpp) CRM.notifyEdicionTercero(updatedOpp, session.uid);
+      });
+    }
     CRM.invalidateCache();
     await refreshCurrentPage();
   } catch(err) {
@@ -938,7 +1025,7 @@ function renderTabla(page) {
   const admin = isAdmin();
   body.innerHTML = pg.rows.map(r => {
     const checked = _bulkTodas.has(r.id);
-    const notasTip = r.notas ? escapeHtml(r.notas) : '';
+    const notasTip = r.notas ? r.notas.replace(/"/g, '&quot;') : '';
     const fechaEntregaTip = r.fechaEntrega ? fmtFecha(r.fechaEntrega) : '';
     return `
     <tr class="row-clickable ${checked ? 'row-selected' : ''}" data-id="${r.id}" onclick="verOportunidad('${r.id}')">
@@ -947,7 +1034,7 @@ function renderTabla(page) {
       <td style="font-weight:600">${escapeHtml(r.cliente) || '—'}</td>
       <td style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" ${notasTip ? 'data-tip="' + notasTip + '"' : ''}>${escapeHtml(r.nombre) || '—'}</td>
       <td style="color:var(--text-muted)">${escapeHtml(r.responsable) || '—'}</td>
-      <td ${fechaEntregaTip ? 'data-tip="Entrega: ' + escapeHtml(fechaEntregaTip) + '"' : ''}><span class="badge ${badgeEstado(r.estado)}">${escapeHtml(r.estado) || '—'}</span></td>
+      <td ${fechaEntregaTip ? 'data-tip="Entrega: ' + fechaEntregaTip.replace(/"/g, '&quot;') + '"' : ''}><span class="badge ${badgeEstado(r.estado)}">${escapeHtml(r.estado) || '—'}</span></td>
     </tr>`;
   }).join('');
   updateBulkTodasUI();
@@ -997,7 +1084,7 @@ async function verOportunidad(id) {
     {
       title: 'Datos Comerciales',
       rows: [
-        ['SharePoint',       r.sharepoint && !/^\s*javascript:/i.test(r.sharepoint) ? `<a href="${escapeHtml(r.sharepoint)}" target="_blank" rel="noopener" style="color:var(--accent);word-break:break-all">${escapeHtml(r.sharepoint)}</a>` : (r.sharepoint ? '<span style="color:var(--text-muted)">—</span>' : '—')],
+        ['SharePoint',       r.sharepoint ? `<a href="${escapeHtml(r.sharepoint)}" target="_blank" rel="noopener" style="color:var(--accent);word-break:break-all">${escapeHtml(r.sharepoint)}</a>` : '—'],
         ['TCV',            fmtNum(r.tcv) + (r.currency ? ' ' + escapeHtml(r.currency) : '')],
         ['TCV EUR',        fmtEURv(r.tcvEur)],
         ['Tipo de Cambio', fmtVal(r.tipoCambio)],
@@ -1081,61 +1168,6 @@ function closeVerModal(event) {
 async function downloadExcelAction() {
   const rows = await CRM.getData();
   CRM.downloadExcel(rows);
-}
-
-async function exportJSONBackupAction() {
-  try {
-    await CRM.exportJSONBackup();
-    TOAST.success('Backup descargado correctamente.');
-  } catch(e) {
-    TOAST.error('Error al generar el backup.');
-  }
-}
-
-async function importJSONBackupAction() {
-  const file = document.getElementById('importJSONFile').files[0];
-  if (!file) { TOAST.warning('Seleccioná un archivo JSON primero.'); return; }
-
-  if (!confirm('Esto va a sobreescribir TODOS los datos actuales (oportunidades, log, usuarios, counter). Confirmar importacion?')) return;
-
-  const btn = document.getElementById('importJSONBtn');
-  const progressWrap = document.getElementById('importJSONProgress');
-  const progressText = document.getElementById('importJSONProgressText');
-  const progressCount = document.getElementById('importJSONProgressCount');
-  const progressBar = document.getElementById('importJSONProgressBar');
-  const result = document.getElementById('importJSONResult');
-
-  btn.disabled = true;
-  btn.textContent = 'Importando...';
-  progressWrap.style.display = 'block';
-  result.style.display = 'none';
-  progressBar.style.width = '0%';
-
-  try {
-    const totals = await CRM.importJSONBackup(file, (step, current, total) => {
-      progressText.textContent = `Importando ${step}...`;
-      progressCount.textContent = `${current}/${total}`;
-      const overallPct = Math.round(((step === 'Counter actualizado' ? 1 : 0) + current) / Math.max(1, total) * 100);
-      progressBar.style.width = overallPct + '%';
-    });
-
-    progressBar.style.width = '100%';
-    result.style.display = 'block';
-    result.style.background = 'color-mix(in srgb, #22c55e 10%, transparent)';
-    result.style.color = '#16a34a';
-    result.innerHTML = `<strong>${totals.oportunidades}</strong> oportunidades, <strong>${totals.usuarios}</strong> usuarios y <strong>${totals.log_eventos}</strong> eventos importados correctamente.`;
-    TOAST.success('Backup importado correctamente.');
-    CRM.invalidateCache();
-  } catch(e) {
-    result.style.display = 'block';
-    result.style.background = 'color-mix(in srgb, #ef4444 10%, transparent)';
-    result.style.color = '#dc2626';
-    result.textContent = e.message || 'Error al importar el backup.';
-    TOAST.error(e.message || 'Error al importar.');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Restaurar Backup';
-  }
 }
 
 // ══════════════════════════════════════════════
@@ -1264,218 +1296,6 @@ function renderCalendario() {
 }
 
 // ══════════════════════════════════════════════
-// MULTI-SELECT FILTER (Estadísticas)
-// ══════════════════════════════════════════════
-const STATS_FILTER_LABELS = {
-  estado: 'Estados',
-  practica: 'Prácticas',
-  responsable: 'Responsables',
-  cliente: 'Clientes'
-};
-let _statsFilterState = {}; // { estado: Set, practica: Set, ... }
-let _statsFiltersInitialized = false;
-
-function initStatsFilters(rows) {
-  if (!rows || rows.length === 0) return;
-
-  const fields = ['estado', 'practica', 'responsable', 'cliente'];
-  const allValues = {};
-  fields.forEach(f => { allValues[f] = [...new Set(rows.map(r => r[f]).filter(Boolean))].sort(); });
-
-  // Para estado, usar el orden definido en CRM.ESTADOS
-  if (CRM.ESTADOS) {
-    allValues.estado = CRM.ESTADOS.filter(e => rows.some(r => r.estado === e));
-  }
-
-  const needsRebuild = !_statsFiltersInitialized;
-
-  // Verificar si las opciones cambiaron (por onSnapshot)
-  if (_statsFiltersInitialized) {
-    const currentKeys = {};
-    fields.forEach(f => { currentKeys[f] = allValues[f].join('|'); });
-    const prevKeys = _statsFilterKeys || {};
-    const changed = fields.some(f => currentKeys[f] !== prevKeys[f]);
-    if (!changed) return;
-    _statsFilterKeys = currentKeys;
-  }
-
-  _statsFiltersInitialized = true;
-  _statsFilterKeys = {};
-  fields.forEach(f => { _statsFilterKeys[f] = allValues[f].join('|'); });
-
-  // Preservar selecciones previas
-  const prevState = {};
-  fields.forEach(f => { if (_statsFilterState[f]) prevState[f] = new Set(_statsFilterState[f]); });
-
-  fields.forEach(field => {
-    const container = document.getElementById('sf_' + field);
-    if (!container) return;
-    const options = allValues[field];
-    if (!options || options.length === 0) { container.style.display = 'none'; return; }
-    container.style.display = '';
-
-    // Si no había estado previo, seleccionar todo
-    if (!prevState[field]) {
-      _statsFilterState[field] = new Set(options);
-    } else {
-      // Mantener solo las selecciones previas que siguen siendo válidas
-      _statsFilterState[field] = new Set(options.filter(v => prevState[field].has(v)));
-    }
-
-    const label = STATS_FILTER_LABELS[field] || field;
-    const isSelected = _statsFilterState[field].size === options.length;
-
-    container.innerHTML = `
-      <div class="ms-trigger" onclick="toggleMsPanel('${field}')">
-        <span class="ms-trigger-label" id="ms_label_${field}">${label}</span>
-        <span class="ms-arrow">&#9660;</span>
-      </div>
-      <div class="ms-panel" id="ms_panel_${field}">
-        <div class="ms-all-row" onclick="toggleMsAll('${field}', event)">
-          <input type="checkbox" id="ms_all_${field}" ${isSelected ? 'checked' : ''}>
-          <span>Todos</span>
-        </div>
-        ${options.map((v, i) => {
-          const isChecked = _statsFilterState[field].has(v);
-          return `
-          <div class="ms-option" data-field="${field}" data-idx="${i}">
-            <input type="checkbox" ${isChecked ? 'checked' : ''}>
-            <span class="ms-option-label">${escapeHtml(v)}</span>
-          </div>`;
-        }).join('')}
-      </div>`;
-
-    // Bind clicks via JS — use e.target to handle native checkbox toggle
-    container.querySelectorAll('.ms-option').forEach(opt => {
-      opt.addEventListener('click', function(e) {
-        e.stopPropagation();
-        const f = this.dataset.field;
-        const cb = this.querySelector('input[type="checkbox"]');
-        const val = this.querySelector('.ms-option-label').textContent;
-        // If click was on the label (not checkbox), toggle manually
-        if (e.target !== cb) cb.checked = !cb.checked;
-        // Now cb.checked reflects the intended state in all cases
-        if (cb.checked) {
-          _statsFilterState[f].add(val);
-        } else {
-          _statsFilterState[f].delete(val);
-        }
-        const allBox = document.getElementById('ms_all_' + f);
-        const allOpts = container.querySelectorAll('.ms-option input[type="checkbox"]');
-        const checkedCount = container.querySelectorAll('.ms-option input[type="checkbox"]:checked').length;
-        if (allBox) allBox.checked = checkedCount === allOpts.length;
-        updateMsTrigger(f);
-        renderStats(true);
-      });
-    });
-
-    updateMsTrigger(field);
-  });
-}
-
-function toggleMsPanel(field) {
-  const panel = document.getElementById('ms_panel_' + field);
-  const trigger = panel?.previousElementSibling;
-  const isOpen = panel && panel.style.display === 'block';
-
-  // Cerrar todos los demás paneles primero
-  document.querySelectorAll('.ms-panel').forEach(p => { p.style.display = 'none'; });
-  document.querySelectorAll('.ms-trigger').forEach(t => { t.classList.remove('open'); });
-
-  if (!isOpen && panel) {
-    panel.style.display = 'block';
-    if (trigger) trigger.classList.add('open');
-  }
-}
-
-function toggleMsAll(field, event) {
-  event.stopPropagation();
-  const container = document.getElementById('sf_' + field);
-  if (!container) return;
-  const checkboxes = container.querySelectorAll('.ms-option input[type="checkbox"]');
-  const allBox = document.getElementById('ms_all_' + field);
-  // If click was on the label "Todos" (not the checkbox), toggle manually
-  if (event.target !== allBox) allBox.checked = !allBox.checked;
-  // Now allBox.checked reflects the intended state
-  const allChecked = allBox.checked;
-
-  if (allChecked) {
-    _statsFilterState[field] = new Set();
-    container.querySelectorAll('.ms-option').forEach(opt => {
-      const val = opt.querySelector('.ms-option-label').textContent;
-      _statsFilterState[field].add(val);
-      opt.querySelector('input[type="checkbox"]').checked = true;
-    });
-  } else {
-    _statsFilterState[field] = new Set();
-    checkboxes.forEach(cb => { cb.checked = false; });
-  }
-
-  updateMsTrigger(field);
-  renderStats(true);
-}
-
-function updateMsTrigger(field) {
-  const label = STATS_FILTER_LABELS[field] || field;
-  const labelEl = document.getElementById('ms_label_' + field);
-  const count = _statsFilterState[field]?.size || 0;
-  const container = document.getElementById('sf_' + field);
-  if (!labelEl || !container) return;
-
-  const allOptions = container.querySelectorAll('.ms-option');
-  const total = allOptions.length;
-
-  if (count === 0) {
-    labelEl.innerHTML = `<span style="color:var(--text-muted)">${label}</span>`;
-  } else if (count === total) {
-    labelEl.innerHTML = label;
-  } else {
-    labelEl.innerHTML = `${label} <span class="ms-trigger-count">${count}</span>`;
-  }
-}
-
-function applyStatsFilters(rows) {
-  return rows.filter(r => {
-    const fields = ['estado', 'practica', 'responsable', 'cliente'];
-    for (const f of fields) {
-      const allowed = _statsFilterState[f];
-      if (!allowed) continue; // No inicializado = sin filtro
-      if (allowed.size === 0) continue; // Todo deseleccionado = sin filtro (mostrar todo)
-      if (r[f] && !allowed.has(r[f])) return false;
-    }
-    return true;
-  });
-}
-
-function statsFiltersReset() {
-  const fields = ['estado', 'practica', 'responsable', 'cliente'];
-  fields.forEach(field => {
-    const container = document.getElementById('sf_' + field);
-    if (!container) return;
-    // Re-setear el Set con todos los valores actuales
-    const newState = new Set();
-    container.querySelectorAll('.ms-option').forEach(opt => {
-      const val = opt.querySelector('.ms-option-label')?.textContent;
-      if (val) newState.add(val);
-      opt.querySelector('input[type="checkbox"]').checked = true;
-    });
-    _statsFilterState[field] = newState;
-    const allBox = document.getElementById('ms_all_' + field);
-    if (allBox) allBox.checked = true;
-    updateMsTrigger(field);
-  });
-  renderStats(true);
-}
-
-// Cerrar paneles al hacer click fuera
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('.ms-dropdown')) {
-    document.querySelectorAll('.ms-panel').forEach(p => { p.style.display = 'none'; });
-    document.querySelectorAll('.ms-trigger').forEach(t => { t.classList.remove('open'); });
-  }
-});
-
-// ══════════════════════════════════════════════
 // PERIOD FILTER (Estadísticas)
 // ══════════════════════════════════════════════
 let _statsPeriod = 'all';
@@ -1593,20 +1413,12 @@ async function renderStats(silent = false) {
   const range = getStatsDateRange();
   const rows = filterByDateRange(allRows, range.from, range.to);
 
-  // Inicializar filtros multi-select solo en render inicial (no en silent/onSnapshot)
-  if (!silent) {
-    initStatsFilters(allRows);
-  }
-
-  // Aplicar filtros multi-select
-  const filteredRows = applyStatsFilters(rows);
-
-  const totalTCV = filteredRows.reduce((s, r) => s + (parseFloat(r.tcvEur) || 0), 0);
-  const probProm = filteredRows.length > 0 ? Math.round(filteredRows.reduce((s, r) => s + (parseFloat(r.probabilidad) || 0), 0) / filteredRows.length) : 0;
-  const enDes = filteredRows.filter(r => r.estado === 'En Desarrollo').length;
+  const totalTCV = rows.reduce((s, r) => s + (parseFloat(r.tcvEur) || 0), 0);
+  const probProm = rows.length > 0 ? Math.round(rows.reduce((s, r) => s + (parseFloat(r.probabilidad) || 0), 0) / rows.length) : 0;
+  const enDes = rows.filter(r => r.estado === 'En Desarrollo').length;
 
   document.getElementById('statsKpis').innerHTML = [
-    { v: filteredRows.length, l: 'Total Oportunidades' },
+    { v: rows.length, l: 'Total Oportunidades' },
     { v: fmtEUR(totalTCV), l: 'TCV EUR Total' },
     { v: enDes, l: 'En Desarrollo' },
     { v: probProm + '%', l: 'Prob. Promedio' }
@@ -1614,7 +1426,7 @@ async function renderStats(silent = false) {
 
   const estadoCounts = {}, estadoTCV = {};
   CRM.ESTADOS.forEach(e => { estadoCounts[e] = 0; estadoTCV[e] = 0; });
-  filteredRows.forEach(r => {
+  rows.forEach(r => {
     if (estadoCounts[r.estado] !== undefined) {
       estadoCounts[r.estado]++;
       estadoTCV[r.estado] += parseFloat(r.tcvEur) || 0;
@@ -1643,7 +1455,7 @@ async function renderStats(silent = false) {
   ).join('');
 
   const origenC = {};
-  filteredRows.forEach(r => { if (r.origen) origenC[r.origen] = (origenC[r.origen] || 0) + 1; });
+  rows.forEach(r => { if (r.origen) origenC[r.origen] = (origenC[r.origen] || 0) + 1; });
   const origenK = Object.keys(origenC);
   _statsCharts.origen = new Chart(document.getElementById('chartOrigen'), {
     type: 'pie',
@@ -1652,7 +1464,7 @@ async function renderStats(silent = false) {
   });
 
   const respC = {};
-  filteredRows.forEach(r => { if (r.responsable) respC[r.responsable] = (respC[r.responsable] || 0) + 1; });
+  rows.forEach(r => { if (r.responsable) respC[r.responsable] = (respC[r.responsable] || 0) + 1; });
   const respK = Object.keys(respC).sort((a, b) => respC[b] - respC[a]).slice(0, 8);
   _statsCharts.resp = new Chart(document.getElementById('chartResp'), {
     type: 'bar',
@@ -1661,7 +1473,7 @@ async function renderStats(silent = false) {
   });
 
   const pracC = {};
-  filteredRows.forEach(r => { if (r.practica) pracC[r.practica] = (pracC[r.practica] || 0) + 1; });
+  rows.forEach(r => { if (r.practica) pracC[r.practica] = (pracC[r.practica] || 0) + 1; });
   const pracK = Object.keys(pracC).sort((a, b) => pracC[b] - pracC[a]);
   _statsCharts.prac = new Chart(document.getElementById('chartPractica'), {
     type: 'bar',
@@ -1670,7 +1482,7 @@ async function renderStats(silent = false) {
   });
 
   const indC = {};
-  filteredRows.forEach(r => { if (r.industria) indC[r.industria] = (indC[r.industria] || 0) + 1; });
+  rows.forEach(r => { if (r.industria) indC[r.industria] = (indC[r.industria] || 0) + 1; });
   const indK = Object.keys(indC).sort((a, b) => indC[b] - indC[a]);
   _statsCharts.ind = new Chart(document.getElementById('chartIndustria'), {
     type: 'pie',
@@ -1702,13 +1514,12 @@ function infoRow(label, value) {
 
 function updateThemeUI() {
   const isDark = THEME.getSavedTheme() === 'dark';
-  const icon = document.getElementById('themeIcon');
-  if (!icon) return;
-  if (isDark) {
-    icon.innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 18 18"><path d="M15.75 9.6A6.75 6.75 0 1 1 8.4 2.25A5.25 5.25 0 0 0 15.75 9.6z" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  } else {
-    icon.innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 18 18"><circle cx="9" cy="9" r="3.5"/><path d="M9 1v2M9 15v2M1 9h2M15 9h2M3.3 3.3l1.4 1.4M13.3 13.3l1.4 1.4M3.3 14.7l1.4-1.4M13.3 4.7l1.4-1.4" stroke-linecap="round"/></svg>';
-  }
+  const toggle = document.getElementById('themeToggle');
+  const knob   = document.getElementById('themeKnob');
+  const label  = document.getElementById('themeLabel');
+  if (toggle) toggle.style.background = isDark ? 'var(--accent)' : '#ccc';
+  if (knob)   knob.style.transform    = isDark ? 'translateX(20px)' : 'translateX(0)';
+  if (label)  label.textContent       = isDark ? 'Oscuro' : 'Claro';
 }
 
 function handleThemeToggle() {
@@ -2085,7 +1896,7 @@ async function executeImport() {
   } else {
     result.style.background = 'color-mix(in srgb, #f59e0b 10%, transparent)';
     result.style.color = '#d97706';
-    result.innerHTML = `<strong>${ok}</strong> importadas, <strong>${fail}</strong> con errores.<br><details style="margin-top:8px;font-size:11px;cursor:pointer"><summary>Ver errores</summary><div style="margin-top:6px;max-height:120px;overflow:auto">${errors.map(e => `<div>${escapeHtml(e)}</div>`).join('')}</div></details>`;
+    result.innerHTML = `<strong>${ok}</strong> importadas, <strong>${fail}</strong> con errores.<br><details style="margin-top:8px;font-size:11px;cursor:pointer"><summary>Ver errores</summary><div style="margin-top:6px;max-height:120px;overflow:auto">${errors.map(e => `<div>${e}</div>`).join('')}</div></details>`;
     TOAST.warning(`${ok} importadas, ${fail} con errores.`);
   }
 
@@ -2464,7 +2275,7 @@ function renderMis(page) {
   const admin = isAdmin();
   body.innerHTML = pg.rows.map(r => {
     const checked = _bulkMis.has(r.id);
-    const notasTip = r.notas ? escapeHtml(r.notas) : '';
+    const notasTip = r.notas ? r.notas.replace(/"/g, '&quot;') : '';
     const fechaEntregaTip = r.fechaEntrega ? fmtFecha(r.fechaEntrega) : '';
     return `
     <tr class="row-clickable ${checked ? 'row-selected' : ''}" data-id="${r.id}" onclick="verOportunidad('${r.id}')">
@@ -2472,7 +2283,7 @@ function renderMis(page) {
       <td class="col-id">${escapeHtml(friendlyId(r))}</td>
       <td style="font-weight:600">${escapeHtml(r.cliente) || '—'}</td>
       <td style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" ${notasTip ? 'data-tip="' + notasTip + '"' : ''}>${escapeHtml(r.nombre) || '—'}</td>
-      <td ${fechaEntregaTip ? 'data-tip="Entrega: ' + escapeHtml(fechaEntregaTip) + '"' : ''}><span class="badge ${badgeEstado(r.estado)}">${escapeHtml(r.estado) || '—'}</span></td>
+      <td ${fechaEntregaTip ? 'data-tip="Entrega: ' + fechaEntregaTip.replace(/"/g, '&quot;') + '"' : ''}><span class="badge ${badgeEstado(r.estado)}">${escapeHtml(r.estado) || '—'}</span></td>
     </tr>`;
   }).join('');
   updateBulkMisUI();
@@ -2531,14 +2342,14 @@ async function initLog() {
     html += `<div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin:24px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)">${dayLabel}</div>`;
     dayEvents.forEach(ev => {
       const style = ACCION_STYLES[ev.accion] || ACCION_STYLES.edicion;
-      const oppLink = ev.oppId ? `<span style="color:var(--accent);font-weight:600;cursor:pointer" onclick="verOportunidadLog('${ev.oppId}')">${escapeHtml(ev.oppCodigo || ev.oppNombre || ev.oppId.substring(0,8))}</span>` : '';
+      const oppLink = ev.oppId ? `<span style="color:var(--accent);font-weight:600;cursor:pointer" onclick="verOportunidadLog('${ev.oppId}')">${ev.oppCodigo || ev.oppNombre || ev.oppId.substring(0,8)}</span>` : '';
       html += `
         <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid color-mix(in srgb, var(--border) 50%, transparent)">
           <div style="width:32px;height:32px;border-radius:8px;background:color-mix(in srgb, ${style.color} 12%, transparent);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">${style.icon}</div>
           <div style="flex:1;min-width:0">
             <div style="font-size:13px;font-weight:500;color:var(--text);line-height:1.4">
-              <span style="font-weight:600">${escapeHtml(ev.usuario) || 'Usuario'}</span>
-              ${escapeHtml(ev.detalle)}
+              <span style="font-weight:600">${ev.usuario || 'Usuario'}</span>
+              ${ev.detalle}
               ${oppLink}
             </div>
             <div style="font-size:11px;color:var(--text-muted);margin-top:2px;display:flex;align-items:center;gap:8px">
@@ -2627,153 +2438,6 @@ document.addEventListener('keydown', function(e) {
 });
 
 // ══════════════════════════════════════════════
-// AUTOCOMPLETE DE CLIENTES
-// ══════════════════════════════════════════════
-const CLIENTE_AUTOCOMPLETE = (() => {
-  let _activeEl = null;   // input activo
-  let _list = null;        // dropdown UL
-  let _selectedIndex = -1; // índice de la opción seleccionada con teclado
-  let _visibleItems = [];  // items actualmente visibles
-
-  function createList() {
-    if (_list) return;
-    _list = document.createElement('ul');
-    _list.className = 'ac-dropdown';
-    _list.id = 'acDropdown';
-    document.body.appendChild(_list);
-  }
-
-  function show(inputEl, items) {
-    if (!items.length) { hide(); return; }
-    _activeEl = inputEl;
-    _visibleItems = items;
-    _selectedIndex = -1;
-
-    _list.innerHTML = items.map((item, i) =>
-      `<li data-index="${i}" data-value="${escapeHtml(item)}">${highlightMatch(item, inputEl.value)}</li>`
-    ).join('');
-
-    // Posicionar debajo del input
-    const rect = inputEl.getBoundingClientRect();
-    _list.style.top = (rect.bottom + 4) + 'px';
-    _list.style.left = rect.left + 'px';
-    _list.style.width = Math.max(rect.width, 220) + 'px';
-    _list.style.display = 'block';
-
-    // Hover events
-    _list.querySelectorAll('li').forEach(li => {
-      li.addEventListener('mouseenter', () => {
-        _selectedIndex = parseInt(li.dataset.index);
-        updateHighlight();
-      });
-      li.addEventListener('mousedown', (e) => {
-        e.preventDefault(); // evitar blur del input
-        selectItem(li.dataset.value);
-      });
-    });
-  }
-
-  function hide() {
-    if (_list) {
-      _list.style.display = 'none';
-      _list.innerHTML = '';
-    }
-    _activeEl = null;
-    _selectedIndex = -1;
-    _visibleItems = [];
-  }
-
-  function selectItem(value) {
-    if (!_activeEl) return;
-    _activeEl.value = value;
-    hide();
-    _activeEl.focus();
-  }
-
-  function highlightMatch(text, query) {
-    if (!query) return escapeHtml(text);
-    const idx = text.toLowerCase().indexOf(query.toLowerCase());
-    if (idx === -1) return escapeHtml(text);
-    const before = escapeHtml(text.substring(0, idx));
-    const match  = escapeHtml(text.substring(idx, idx + query.length));
-    const after  = escapeHtml(text.substring(idx + query.length));
-    return before + '<strong class="ac-match">' + match + '</strong>' + after;
-  }
-
-  function moveSelection(dir) {
-    if (!_list || _list.style.display === 'none' || !_visibleItems.length) return;
-    _selectedIndex += dir;
-    if (_selectedIndex < 0) _selectedIndex = _visibleItems.length - 1;
-    if (_selectedIndex >= _visibleItems.length) _selectedIndex = 0;
-    updateHighlight();
-    // Scroll into view
-    const li = _list.querySelector(`li[data-index="${_selectedIndex}"]`);
-    if (li) li.scrollIntoView({ block: 'nearest' });
-  }
-
-  function updateHighlight() {
-    if (!_list) return;
-    _list.querySelectorAll('li').forEach((li, i) => {
-      li.classList.toggle('ac-active', i === _selectedIndex);
-    });
-  }
-
-  function onKeyDown(e) {
-    if (!_activeEl || !_list || _list.style.display === 'none') return;
-    if (e.key === 'ArrowDown') { e.preventDefault(); moveSelection(1); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); moveSelection(-1); }
-    else if (e.key === 'Enter' || e.key === 'Tab') {
-      if (_selectedIndex >= 0 && _visibleItems[_selectedIndex]) {
-        e.preventDefault();
-        selectItem(_visibleItems[_selectedIndex]);
-      }
-    }
-    else if (e.key === 'Escape') { hide(); }
-  }
-
-  function onInput(e) {
-    const input = e.target;
-    if (!input.matches('#n_cliente, #e_cliente')) return;
-    const query = input.value.trim();
-    if (query.length < 1) { hide(); return; }
-
-    const allClientes = CRM.getClientesUnicos();
-    const matches = allClientes.filter(c =>
-      c.toLowerCase().includes(query.toLowerCase())
-    ).slice(0, 8);
-
-    createList();
-    show(input, matches);
-  }
-
-  function onBlur(e) {
-    // Delay para permitir click en la lista
-    setTimeout(() => hide(), 150);
-  }
-
-  // Public
-  function init() {
-    createList();
-    document.addEventListener('input', onInput);
-    document.addEventListener('keydown', onKeyDown);
-    document.addEventListener('focusin', (e) => {
-      // Si el foco sale de un campo cliente a algo que no sea la lista, cerrar
-      if (!_list) return;
-      if (e.target && (e.target.closest('.ac-dropdown'))) return;
-    });
-    // Cerrar al hacer click fuera
-    document.addEventListener('mousedown', (e) => {
-      if (!_list || _list.style.display === 'none') return;
-      if (e.target.closest('.ac-dropdown')) return;
-      if (e.target === _activeEl) return;
-      hide();
-    });
-  }
-
-  return { init };
-})();
-
-// ══════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════
 function initApp() {
@@ -2807,7 +2471,7 @@ function initApp() {
 
   // Connection check
   checkConexion();
-  setInterval(checkConexion, 600000); // 10 minutos
+  setInterval(checkConexion, 300000); // 5 minutos
 
   // Real-time listener: si cambian datos en Firestore, actualizar
   CRM.onOportunidadesChange((freshData) => {
@@ -2821,8 +2485,12 @@ function initApp() {
     }
   });
 
-  // Inicializar autocomplete de clientes
-  CLIENTE_AUTOCOMPLETE.init();
+  // Init notifications
+  NOTIF.init();
+
+  // Check scheduled notifications (entrega proxima + sin actualizar)
+  CRM.checkEntregaProxima();
+  CRM.checkSinActualizar();
 
   // Load home
   renderHome();
