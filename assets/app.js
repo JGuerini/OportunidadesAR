@@ -276,7 +276,7 @@ const TOAST = (() => {
     toast.className = `toast toast-${type}`;
     toast.innerHTML =
       '<span class="toast-icon">' + (ICONS[type] || ICONS.info) + '</span>' +
-      '<span class="toast-msg">' + message + '</span>' +
+      '<span class="toast-msg">' + escapeHtml(message) + '</span>' +
       '<button class="toast-close">\u2715</button>';
 
     // Cerrar con boton
@@ -1045,7 +1045,7 @@ function renderTabla(page) {
   const admin = isAdmin();
   body.innerHTML = pg.rows.map(r => {
     const checked = _bulkTodas.has(r.id);
-    const notasTip = r.notas ? r.notas.replace(/"/g, '&quot;') : '';
+    const notasTip = r.notas ? escapeHtml(r.notas) : '';
     const fechaEntregaTip = r.fechaEntrega ? fmtFecha(r.fechaEntrega) : '';
     return `
     <tr class="row-clickable ${checked ? 'row-selected' : ''}" data-id="${r.id}" onclick="verOportunidad('${r.id}')">
@@ -1054,7 +1054,7 @@ function renderTabla(page) {
       <td style="font-weight:600">${escapeHtml(r.cliente) || '—'}</td>
       <td style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" ${notasTip ? 'data-tip="' + notasTip + '"' : ''}>${escapeHtml(r.nombre) || '—'}</td>
       <td style="color:var(--text-muted)">${escapeHtml(r.responsable) || '—'}</td>
-      <td ${fechaEntregaTip ? 'data-tip="Entrega: ' + fechaEntregaTip.replace(/"/g, '&quot;') + '"' : ''}><span class="badge ${badgeEstado(r.estado)}">${escapeHtml(r.estado) || '—'}</span></td>
+      <td ${fechaEntregaTip ? 'data-tip="Entrega: ' + escapeHtml(fechaEntregaTip) + '"' : ''}><span class="badge ${badgeEstado(r.estado)}">${escapeHtml(r.estado) || '—'}</span></td>
     </tr>`;
   }).join('');
   updateBulkTodasUI();
@@ -1104,7 +1104,7 @@ async function verOportunidad(id) {
     {
       title: 'Datos Comerciales',
       rows: [
-        ['SharePoint',       r.sharepoint ? `<a href="${escapeHtml(r.sharepoint)}" target="_blank" rel="noopener" style="color:var(--accent);word-break:break-all">${escapeHtml(r.sharepoint)}</a>` : '—'],
+        ['SharePoint',       r.sharepoint && !/^\s*javascript:/i.test(r.sharepoint) ? `<a href="${escapeHtml(r.sharepoint)}" target="_blank" rel="noopener" style="color:var(--accent);word-break:break-all">${escapeHtml(r.sharepoint)}</a>` : (r.sharepoint ? '<span style="color:var(--text-muted)">—</span>' : '—')],
         ['TCV',            fmtNum(r.tcv) + (r.currency ? ' ' + escapeHtml(r.currency) : '')],
         ['TCV EUR',        fmtEURv(r.tcvEur)],
         ['Tipo de Cambio', fmtVal(r.tipoCambio)],
@@ -1188,6 +1188,62 @@ function closeVerModal(event) {
 async function downloadExcelAction() {
   const rows = await CRM.getData();
   CRM.downloadExcel(rows);
+}
+
+// ── BACKUP / RESTORE JSON ──
+async function exportJSONBackupAction() {
+  try {
+    await CRM.exportJSONBackup();
+    TOAST.success('Backup descargado correctamente.');
+  } catch(e) {
+    TOAST.error('Error al generar el backup.');
+  }
+}
+
+async function importJSONBackupAction() {
+  const file = document.getElementById('importJSONFile').files[0];
+  if (!file) { TOAST.warning('Seleccioná un archivo JSON primero.'); return; }
+
+  if (!confirm('Esto va a sobreescribir TODOS los datos actuales (oportunidades, log, usuarios, counter). Confirmar importacion?')) return;
+
+  const btn = document.getElementById('importJSONBtn');
+  const progressWrap = document.getElementById('importJSONProgress');
+  const progressText = document.getElementById('importJSONProgressText');
+  const progressCount = document.getElementById('importJSONProgressCount');
+  const progressBar = document.getElementById('importJSONProgressBar');
+  const result = document.getElementById('importJSONResult');
+
+  btn.disabled = true;
+  btn.textContent = 'Importando...';
+  progressWrap.style.display = 'block';
+  result.style.display = 'none';
+  progressBar.style.width = '0%';
+
+  try {
+    const totals = await CRM.importJSONBackup(file, (step, current, total) => {
+      progressText.textContent = `Importando ${step}...`;
+      progressCount.textContent = `${current}/${total}`;
+      const overallPct = Math.round(((step === 'Counter actualizado' ? 1 : 0) + current) / Math.max(1, total) * 100);
+      progressBar.style.width = overallPct + '%';
+    });
+
+    progressBar.style.width = '100%';
+    result.style.display = 'block';
+    result.style.background = 'color-mix(in srgb, #22c55e 10%, transparent)';
+    result.style.color = '#16a34a';
+    result.innerHTML = `<strong>${totals.oportunidades}</strong> oportunidades, <strong>${totals.usuarios}</strong> usuarios y <strong>${totals.log_eventos}</strong> eventos importados correctamente.`;
+    TOAST.success('Backup importado correctamente.');
+    CRM.invalidateCache();
+  } catch(e) {
+    result.style.display = 'block';
+    result.style.background = 'color-mix(in srgb, #ef4444 10%, transparent)';
+    result.style.color = '#dc2626';
+    result.textContent = e.message || 'Error al importar el backup.';
+    TOAST.error(e.message || 'Error al importar.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Restaurar Backup';
+  }
 }
 
 // ══════════════════════════════════════════════
@@ -2107,7 +2163,7 @@ async function executeImport() {
   } else {
     result.style.background = 'color-mix(in srgb, #f59e0b 10%, transparent)';
     result.style.color = '#d97706';
-    result.innerHTML = `<strong>${ok}</strong> importadas, <strong>${fail}</strong> con errores.<br><details style="margin-top:8px;font-size:11px;cursor:pointer"><summary>Ver errores</summary><div style="margin-top:6px;max-height:120px;overflow:auto">${errors.map(e => `<div>${e}</div>`).join('')}</div></details>`;
+    result.innerHTML = `<strong>${ok}</strong> importadas, <strong>${fail}</strong> con errores.<br><details style="margin-top:8px;font-size:11px;cursor:pointer"><summary>Ver errores</summary><div style="margin-top:6px;max-height:120px;overflow:auto">${errors.map(e => `<div>${escapeHtml(e)}</div>`).join('')}</div></details>`;
     TOAST.warning(`${ok} importadas, ${fail} con errores.`);
   }
 
@@ -2486,7 +2542,7 @@ function renderMis(page) {
   const admin = isAdmin();
   body.innerHTML = pg.rows.map(r => {
     const checked = _bulkMis.has(r.id);
-    const notasTip = r.notas ? r.notas.replace(/"/g, '&quot;') : '';
+    const notasTip = r.notas ? escapeHtml(r.notas) : '';
     const fechaEntregaTip = r.fechaEntrega ? fmtFecha(r.fechaEntrega) : '';
     return `
     <tr class="row-clickable ${checked ? 'row-selected' : ''}" data-id="${r.id}" onclick="verOportunidad('${r.id}')">
@@ -2494,7 +2550,7 @@ function renderMis(page) {
       <td class="col-id">${escapeHtml(friendlyId(r))}</td>
       <td style="font-weight:600">${escapeHtml(r.cliente) || '—'}</td>
       <td style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" ${notasTip ? 'data-tip="' + notasTip + '"' : ''}>${escapeHtml(r.nombre) || '—'}</td>
-      <td ${fechaEntregaTip ? 'data-tip="Entrega: ' + fechaEntregaTip.replace(/"/g, '&quot;') + '"' : ''}><span class="badge ${badgeEstado(r.estado)}">${escapeHtml(r.estado) || '—'}</span></td>
+      <td ${fechaEntregaTip ? 'data-tip="Entrega: ' + escapeHtml(fechaEntregaTip) + '"' : ''}><span class="badge ${badgeEstado(r.estado)}">${escapeHtml(r.estado) || '—'}</span></td>
     </tr>`;
   }).join('');
   updateBulkMisUI();
@@ -2553,14 +2609,14 @@ async function initLog() {
     html += `<div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin:24px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)">${dayLabel}</div>`;
     dayEvents.forEach(ev => {
       const style = ACCION_STYLES[ev.accion] || ACCION_STYLES.edicion;
-      const oppLink = ev.oppId ? `<span style="color:var(--accent);font-weight:600;cursor:pointer" onclick="verOportunidadLog('${ev.oppId}')">${ev.oppCodigo || ev.oppNombre || ev.oppId.substring(0,8)}</span>` : '';
+      const oppLink = ev.oppId ? `<span style="color:var(--accent);font-weight:600;cursor:pointer" onclick="verOportunidadLog('${ev.oppId}')">${escapeHtml(ev.oppCodigo || ev.oppNombre || ev.oppId.substring(0,8))}</span>` : '';
       html += `
         <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid color-mix(in srgb, var(--border) 50%, transparent)">
           <div style="width:32px;height:32px;border-radius:8px;background:color-mix(in srgb, ${style.color} 12%, transparent);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">${style.icon}</div>
           <div style="flex:1;min-width:0">
             <div style="font-size:13px;font-weight:500;color:var(--text);line-height:1.4">
-              <span style="font-weight:600">${ev.usuario || 'Usuario'}</span>
-              ${ev.detalle}
+              <span style="font-weight:600">${escapeHtml(ev.usuario) || 'Usuario'}</span>
+              ${escapeHtml(ev.detalle)}
               ${oppLink}
             </div>
             <div style="font-size:11px;color:var(--text-muted);margin-top:2px;display:flex;align-items:center;gap:8px">
