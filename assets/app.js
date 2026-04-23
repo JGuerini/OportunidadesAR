@@ -529,14 +529,26 @@ async function renderHome() {
     ).join('');
   }
 
-  const recientes = rows.slice(0, 5);
+  // Oportunidades próximas a entregar: con fechaEntrega futura, ordenadas de más próxima a más lejana
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const proximas = rows
+    .filter(r => r.fechaEntrega && new Date(r.fechaEntrega + 'T23:59:59') >= hoy)
+    .sort((a, b) => new Date(a.fechaEntrega) - new Date(b.fechaEntrega))
+    .slice(0, 5);
   const recientesContent = document.getElementById('recientesContent');
   if (recientesContent) {
-    recientesContent.innerHTML = recientes.length === 0
-      ? '<div class="empty"><div class="empty-text">Sin oportunidades aún</div></div>'
-      : `<table><thead><tr><th>Nombre</th><th>Cliente</th><th>Estado</th></tr></thead><tbody>${recientes.map(r =>
-          `<tr><td>${escapeHtml(r.nombre) || '—'}</td><td style="color:var(--text-muted)">${escapeHtml(r.cliente) || '—'}</td><td><span class="badge ${badgeEstado(r.estado)}">${escapeHtml(r.estado) || '—'}</span></td></tr>`
-        ).join('')}</tbody></table>`;
+    recientesContent.innerHTML = proximas.length === 0
+      ? '<div class="empty"><div class="empty-text">No hay entregas próximas</div></div>'
+      : `<table><thead><tr><th>Cliente</th><th>Nombre</th><th>Entrega</th></tr></thead><tbody>${proximas.map(r => {
+          const dias = Math.ceil((new Date(r.fechaEntrega) - hoy) / 86400000);
+          const urgencia = dias <= 3 ? 'color:#ef4444;font-weight:700' : dias <= 7 ? 'color:#f59e0b;font-weight:600' : 'color:var(--text-muted)';
+          return `<tr><td style="font-weight:600">${escapeHtml(r.cliente) || '—'}</td><td>${escapeHtml(r.nombre) || '—'}</td><td style="${urgencia}">${fmtFecha(r.fechaEntrega)}</td></tr>`;
+        }).join('')}</tbody></table>
+        <div style="display:flex;gap:12px;margin-top:10px;font-size:10px;color:var(--text-muted);font-weight:500;letter-spacing:0.02em">
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:#ef4444;flex-shrink:0"></span> 3 días o menos</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;flex-shrink:0"></span> 7 días o menos</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:var(--text-muted);opacity:0.5;flex-shrink:0"></span> Más de 7 días</span>
+        </div>`;
   }
 }
 
