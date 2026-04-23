@@ -487,19 +487,27 @@ function setStatus(state) {
 async function renderHome() {
   updateGreeting();
   const rows = await CRM.getData();
-  const totalTCV = rows.reduce((s, r) => s + (parseFloat(r.tcvEur) || 0), 0);
+  const activas = rows.filter(r => ['En Desarrollo', 'Pausa', 'Entregada'].includes(r.estado)).length;
   const enDes = rows.filter(r => r.estado === 'En Desarrollo').length;
-  const ganadas  = rows.filter(r => r.estado === 'Ganada').length;
-  const perdidas = rows.filter(r => r.estado === 'Perdida').length;
-  const winRate  = (ganadas + perdidas) > 0 ? Math.round(ganadas / (ganadas + perdidas) * 100) : 0;
+  const entregadas = rows.filter(r => r.estado === 'Entregada').length;
+
+  // Nuevas este mes: fechaInicio cae en el mes actual
+  const ahora = new Date();
+  const mesActual = ahora.getMonth();
+  const anioActual = ahora.getFullYear();
+  const nuevasMes = rows.filter(r => {
+    if (!r.fechaInicio) return false;
+    const f = new Date(r.fechaInicio + 'T12:00:00');
+    return f.getMonth() === mesActual && f.getFullYear() === anioActual;
+  }).length;
 
   const homeStats = document.getElementById('homeStats');
   if (homeStats) {
     homeStats.innerHTML = [
-      { v: rows.length, l: 'Total Opor.' },
+      { v: activas, l: 'Oportunidades activas' },
       { v: enDes, l: 'En Desarrollo' },
-      { v: fmtEUR(totalTCV), l: 'TCV EUR Total' },
-      { v: winRate + '%', l: 'Win Rate' }
+      { v: nuevasMes, l: 'Nuevas este mes' },
+      { v: entregadas, l: 'Oportunidades entregadas' }
     ].map(s => `<div class="qs-card"><div class="qs-value">${s.v}</div><div class="qs-label">${s.l}</div></div>`).join('');
   }
 
@@ -2629,6 +2637,143 @@ document.addEventListener('keydown', function(e) {
 });
 
 // ══════════════════════════════════════════════
+// AUTOCOMPLETE DE CLIENTES
+// ══════════════════════════════════════════════
+const CLIENTE_AUTOCOMPLETE = (() => {
+  let _activeEl = null;   // input activo
+  let _list = null;        // dropdown UL
+  let _selectedIndex = -1; // índice de la opción seleccionada con teclado
+  let _visibleItems = [];  // items actualmente visibles
+
+  function createList() {
+    if (_list) return;
+    _list = document.createElement('ul');
+    _list.className = 'ac-dropdown';
+    _list.id = 'acDropdown';
+    document.body.appendChild(_list);
+  }
+
+  function show(inputEl, items) {
+    if (!items.length) { hide(); return; }
+    _activeEl = inputEl;
+    _visibleItems = items;
+    _selectedIndex = -1;
+
+    _list.innerHTML = items.map((item, i) =>
+      `<li data-index="${i}" data-value="${escapeHtml(item)}">${highlightMatch(item, inputEl.value)}</li>`
+    ).join('');
+
+    // Posicionar debajo del input
+    const rect = inputEl.getBoundingClientRect();
+    _list.style.top = (rect.bottom + 4) + 'px';
+    _list.style.left = rect.left + 'px';
+    _list.style.width = Math.max(rect.width, 220) + 'px';
+    _list.style.display = 'block';
+
+    // Hover events
+    _list.querySelectorAll('li').forEach(li => {
+      li.addEventListener('mouseenter', () => {
+        _selectedIndex = parseInt(li.dataset.index);
+        updateHighlight();
+      });
+      li.addEventListener('mousedown', (e) => {
+        e.preventDefault(); // evitar blur del input
+        selectItem(li.dataset.value);
+      });
+    });
+  }
+
+  function hide() {
+    if (_list) {
+      _list.style.display = 'none';
+      _list.innerHTML = '';
+    }
+    _activeEl = null;
+    _selectedIndex = -1;
+    _visibleItems = [];
+  }
+
+  function selectItem(value) {
+    if (!_activeEl) return;
+    _activeEl.value = value;
+    hide();
+    _activeEl.focus();
+  }
+
+  function highlightMatch(text, query) {
+    if (!query) return escapeHtml(text);
+    const idx = text.toLowerCase().indexOf(query.toLowerCase());
+    if (idx === -1) return escapeHtml(text);
+    const before = escapeHtml(text.substring(0, idx));
+    const match  = escapeHtml(text.substring(idx, idx + query.length));
+    const after  = escapeHtml(text.substring(idx + query.length));
+    return before + '<strong class="ac-match">' + match + '</strong>' + after;
+  }
+
+  function moveSelection(dir) {
+    if (!_list || _list.style.display === 'none' || !_visibleItems.length) return;
+    _selectedIndex += dir;
+    if (_selectedIndex < 0) _selectedIndex = _visibleItems.length - 1;
+    if (_selectedIndex >= _visibleItems.length) _selectedIndex = 0;
+    updateHighlight();
+    // Scroll into view
+    const li = _list.querySelector(`li[data-index="${_selectedIndex}"]`);
+    if (li) li.scrollIntoView({ block: 'nearest' });
+  }
+
+  function updateHighlight() {
+    if (!_list) return;
+    _list.querySelectorAll('li').forEach((li, i) => {
+      li.classList.toggle('ac-active', i === _selectedIndex);
+    });
+  }
+
+  function onKeyDown(e) {
+    if (!_activeEl || !_list || _list.style.display === 'none') return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); moveSelection(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); moveSelection(-1); }
+    else if (e.key === 'Enter' || e.key === 'Tab') {
+      if (_selectedIndex >= 0 && _visibleItems[_selectedIndex]) {
+        e.preventDefault();
+        selectItem(_visibleItems[_selectedIndex]);
+      }
+    }
+    else if (e.key === 'Escape') { hide(); }
+  }
+
+  function onInput(e) {
+    const input = e.target;
+    if (!input.matches('#n_cliente, #e_cliente')) return;
+    const query = input.value.trim();
+    if (query.length < 1) { hide(); return; }
+
+    const allClientes = CRM.getClientesUnicos();
+    const matches = allClientes.filter(c =>
+      c.toLowerCase().includes(query.toLowerCase())
+    ).slice(0, 8);
+
+    createList();
+    show(input, matches);
+  }
+
+  // Public
+  function init() {
+    createList();
+    document.addEventListener('input', onInput);
+    document.addEventListener('keydown', onKeyDown);
+    // Cerrar al hacer click fuera
+    document.addEventListener('mousedown', (e) => {
+      if (!_list || _list.style.display === 'none') return;
+      if (e.target.closest('.ac-dropdown')) return;
+      if (e.target === _activeEl) return;
+      hide();
+    });
+  }
+
+  return { init };
+})();
+
+// ══════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════
 function initApp() {
@@ -2678,6 +2823,9 @@ function initApp() {
 
   // Init notifications
   NOTIF.init();
+
+  // Inicializar autocomplete de clientes
+  CLIENTE_AUTOCOMPLETE.init();
 
   // Check scheduled notifications (entrega proxima + sin actualizar)
   CRM.checkEntregaProxima();
