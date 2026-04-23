@@ -455,6 +455,83 @@ async function checkSinActualizar() {
   } catch(e) { console.error('Error check sin actualizar:', e); }
 }
 
+// ── CLIENTES ÚNICOS ──
+function getClientesUnicos() {
+  if (!_cache) return [];
+  return [...new Set(_cache.map(r => r.cliente).filter(Boolean))].sort();
+}
+
+// ── JSON BACKUP ──
+async function exportJSONBackup() {
+  try {
+    const result = {};
+    // Oportunidades
+    const oppSnap = await firebase.firestore().collection(OPORTUNIDADES_COL).get();
+    result.oportunidades = oppSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // Usuarios
+    const usersSnap = await firebase.firestore().collection('usuarios').get();
+    result.usuarios = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // Log de eventos
+    const logSnap = await firebase.firestore().collection('log_eventos').get();
+    result.log_eventos = logSnap.docs.map(d => d.data());
+    // Counter
+    const counterDoc = await firebase.firestore().collection('counters').doc('oportunidades').get();
+    result.counter = counterDoc.exists ? counterDoc.data() : null;
+    return result;
+  } catch(e) {
+    console.error('Error exportando backup:', e);
+    throw e;
+  }
+}
+
+async function importJSONBackup(data, onProgress) {
+  try {
+    // Oportunidades
+    const opps = data.oportunidades || [];
+    for (let i = 0; i < opps.length; i++) {
+      const opp = opps[i];
+      const id = opp.id;
+      const { id: _id, ...docData } = opp;
+      if (id) {
+        await firebase.firestore().collection(OPORTUNIDADES_COL).doc(id).set(docData, { merge: true });
+      } else {
+        await firebase.firestore().collection(OPORTUNIDADES_COL).add(docData);
+      }
+      if (onProgress) onProgress(i + 1, opps.length, 'oportunidades');
+    }
+    // Usuarios
+    const users = data.usuarios || [];
+    for (let i = 0; i < users.length; i++) {
+      const u = users[i];
+      const id = u.id;
+      const { id: _id, ...docData } = u;
+      if (id) {
+        await firebase.firestore().collection('usuarios').doc(id).set(docData, { merge: true });
+      } else {
+        await firebase.firestore().collection('usuarios').add(docData);
+      }
+      if (onProgress) onProgress(i + 1, users.length, 'usuarios');
+    }
+    // Counter
+    if (data.counter) {
+      await firebase.firestore().collection('counters').doc('oportunidades').set(data.counter, { merge: true });
+    }
+    // Log de eventos
+    const logs = data.log_eventos || [];
+    if (logs.length) {
+      const batch = firebase.firestore().batch();
+      const colRef = firebase.firestore().collection('log_eventos');
+      logs.forEach(log => batch.add(colRef, log));
+      await batch.commit();
+    }
+    invalidateCache();
+    return { oportunidades: opps.length, usuarios: users.length, log_eventos: logs.length };
+  } catch(e) {
+    console.error('Error importando backup:', e);
+    throw e;
+  }
+}
+
 window.CRM = {
   getData, addOportunidad, updateOportunidad, deleteOportunidad,
   getOportunidad, downloadExcel, onOportunidadesChange, getNextCodigo,
