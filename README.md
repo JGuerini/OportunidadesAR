@@ -74,6 +74,17 @@ Gestión integral de pipeline comercial con seguimiento en tiempo real, análisi
 - **Click en evento** — Abre el modal de detalle de la oportunidad
 - **Resaltado del día actual** — Indicador visual del día de hoy
 
+### Notificaciones
+
+- **Panel de notificaciones** — Campana en el header con badge de cantidad y dropdown en tiempo real
+- **Entrega próxima** — Alerta automática cuando una oportunidad se entrega en ≤3 días (hoy, mañana o en 2-3 días), notificando al responsable y a los admins
+- **Oportunidad sin actualizar** — Alerta cuando una oportunidad lleva ≥15 días sin modificaciones, notificando al responsable
+- **Nueva asignación** — Notificación al responsable cuando le asignan una oportunidad
+- **Edición por tercero** — Notificación al responsable cuando otro usuario edita su oportunidad
+- **Deduplicación inteligente** — Cada combinación usuario + oportunidad genera una sola notificación por tipo, evitando repetición en los checks periódicos (cada 15 minutos)
+- **Marcar como leída** — Click individual en una notificación o botón "Marcar todas como leídas"
+- **Listener en tiempo real** — Las notificaciones se actualizan instantáneamente vía Firestore onSnapshot
+
 ### Estadísticas
 
 - **KPIs principales** — Oportunidades activas, En Desarrollo, Nuevas este mes, Oportunidades entregadas
