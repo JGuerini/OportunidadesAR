@@ -351,6 +351,7 @@ async function createNotificacion(usuarioUid, tipo, titulo, mensaje, oppId, oppN
 function onNotificacionesChange(usuarioUid, callback) {
   return firebase.firestore().collection('notificaciones')
     .where('usuarioUid', '==', usuarioUid)
+    .where('leida', '==', false)
     .orderBy('fecha', 'desc')
     .limit(30)
     .onSnapshot(snap => {
@@ -359,14 +360,14 @@ function onNotificacionesChange(usuarioUid, callback) {
 }
 
 async function markNotificacionLeida(notifId) {
-  try { await firebase.firestore().collection('notificaciones').doc(notifId).delete(); }
+  try { await firebase.firestore().collection('notificaciones').doc(notifId).update({ leida: true }); }
   catch(e) { console.error('Error marcando notificacion:', e); }
 }
 
 async function markAllNotificacionesLeidas(notifIds) {
   if (!notifIds.length) return;
   const batch = firebase.firestore().batch();
-  notifIds.forEach(id => batch.delete(firebase.firestore().collection('notificaciones').doc(id)));
+  notifIds.forEach(id => batch.update(firebase.firestore().collection('notificaciones').doc(id), { leida: true }));
   await batch.commit();
 }
 

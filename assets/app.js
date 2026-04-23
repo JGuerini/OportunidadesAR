@@ -443,7 +443,7 @@ const NOTIF = {
   async markAllRead() {
     const ids = this._notifs.map(n => n.id);
     await CRM.markAllNotificacionesLeidas(ids);
-    TOAST.success('Notificaciones eliminadas.');
+    TOAST.success('Notificaciones marcadas como leídas.');
   },
 
   _timeAgo(dateStr) {
