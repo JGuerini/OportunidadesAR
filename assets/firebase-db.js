@@ -524,8 +524,10 @@ async function importJSONBackup(data, onProgress) {
     const logs = data.log_eventos || [];
     if (logs.length) {
       const batch = firebase.firestore().batch();
-      const colRef = firebase.firestore().collection('log_eventos');
-      logs.forEach(log => batch.add(colRef, log));
+      logs.forEach(log => {
+        const ref = firebase.firestore().collection('log_eventos').doc();
+        batch.set(ref, log);
+      });
       await batch.commit();
     }
     invalidateCache();
