@@ -662,7 +662,17 @@ body.dark-mode .hero::after {
 .funnel-fill { height:100%;border-radius:var(--radius-sm);transition:width 0.6s; }
 
 /* ── MULTI-SELECT DROPDOWN (Estadísticas) ── */
-.ms-dropdown { position:relative;min-width:160px;flex:1;max-width:220px; }
+.stats-filters {
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  background:var(--glass-bg);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
+  border:1px solid var(--glass-border);border-radius:var(--radius);padding:5px 10px;
+  box-shadow:var(--glass-shadow);margin-bottom:16px;
+}
+.ms-dropdown { position:relative;min-width:130px;flex:1;max-width:none; }
+.stats-clear-btn {
+  flex-shrink:0;font-size:11px;white-space:nowrap;padding:4px 10px;
+  margin-left:auto;
+}
 .ms-trigger {
   display:flex;align-items:center;justify-content:space-between;gap:6px;
   padding:7px 12px;
