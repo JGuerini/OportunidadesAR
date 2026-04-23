@@ -667,6 +667,7 @@ body.dark-mode .hero::after {
   background:var(--glass-bg);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
   border:1px solid var(--glass-border);border-radius:var(--radius);padding:5px 10px;
   box-shadow:var(--glass-shadow);margin-bottom:16px;
+  position:relative;z-index:100;
 }
 .ms-dropdown { position:relative;min-width:130px;flex:1;max-width:none; }
 .stats-clear-btn {
