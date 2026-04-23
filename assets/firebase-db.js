@@ -420,8 +420,28 @@ async function checkEntregaProxima() {
       });
     });
     if (!notifs.length) return;
+
+    // Verificar notificaciones existentes para evitar duplicados
+    const uids = [...new Set(notifs.map(n => n.usuarioUid))];
+    const oppIds = [...new Set(notifs.map(n => n.oppId))];
+    const ek = (uid, oppId) => `${uid}:${oppId}`;
+    const existingSet = new Set();
+    for (const uid of uids) {
+      const snap = await firebase.firestore().collection('notificaciones')
+        .where('usuarioUid', '==', uid)
+        .where('tipo', '==', 'entrega_proxima')
+        .get();
+      snap.docs.forEach(d => {
+        const data = d.data();
+        if (oppIds.includes(data.oppId)) existingSet.add(ek(uid, data.oppId));
+      });
+    }
+
+    const newNotifs = notifs.filter(n => !existingSet.has(ek(n.usuarioUid, n.oppId)));
+    if (!newNotifs.length) return;
+
     const batch = firebase.firestore().batch();
-    notifs.forEach(n => {
+    newNotifs.forEach(n => {
       const ref = firebase.firestore().collection('notificaciones').doc();
       batch.set(ref, { ...n, leida: false, fecha: new Date().toISOString() });
     });
@@ -449,8 +469,28 @@ async function checkSinActualizar() {
         oppId: doc.id, oppNombre: opp.nombre || '' });
     });
     if (!notifs.length) return;
+
+    // Verificar notificaciones existentes para evitar duplicados
+    const uids = [...new Set(notifs.map(n => n.usuarioUid))];
+    const oppIds = [...new Set(notifs.map(n => n.oppId))];
+    const ek = (uid, oppId) => `${uid}:${oppId}`;
+    const existingSet = new Set();
+    for (const uid of uids) {
+      const snap = await firebase.firestore().collection('notificaciones')
+        .where('usuarioUid', '==', uid)
+        .where('tipo', '==', 'sin_actualizar')
+        .get();
+      snap.docs.forEach(d => {
+        const data = d.data();
+        if (oppIds.includes(data.oppId)) existingSet.add(ek(uid, data.oppId));
+      });
+    }
+
+    const newNotifs = notifs.filter(n => !existingSet.has(ek(n.usuarioUid, n.oppId)));
+    if (!newNotifs.length) return;
+
     const batch = firebase.firestore().batch();
-    notifs.forEach(n => {
+    newNotifs.forEach(n => {
       const ref = firebase.firestore().collection('notificaciones').doc();
       batch.set(ref, { ...n, leida: false, fecha: new Date().toISOString() });
     });
