@@ -20,9 +20,6 @@ const firebaseConfig = {
 // Inicializar Firebase
 firebase.initializeApp(firebaseConfig);
 
-// Habilitar persistencia offline de Firestore
-firebase.firestore().enablePersistence({ synchronizeTabs: true }).catch(() => {});
-
 // Exportar referencias globales
 window.db   = firebase.firestore();
 window.auth = firebase.auth();
