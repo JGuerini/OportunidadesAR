@@ -931,7 +931,7 @@ body.dark-mode .ver-modal-actions {
 /* TOAST NOTIFICATIONS */
 .toast-container {
   position: fixed;
-  top: 20px;
+  bottom: 20px;
   right: 20px;
   z-index: 10000;
   display: flex;
@@ -1097,7 +1097,7 @@ body.dark-mode .toast-close:hover { color: #f0f0f0; }
 
 /* ── Toast Responsive ── */
 @media (max-width: 480px) {
-  .toast-container { top:12px;right:12px;left:12px;max-width:none;width:auto; }
+  .toast-container { top:auto;bottom:12px;right:12px;left:12px;max-width:none;width:auto; }
   .toast { padding:12px 14px;font-size:12px; }
 }
 
