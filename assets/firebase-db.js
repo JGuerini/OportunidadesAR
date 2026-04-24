@@ -373,6 +373,12 @@ async function markAllNotificacionesLeidas(notifIds) {
 
 // ── NOTIFICATION TRIGGERS ──
 const ESTADOS_FINALES = ['Ganada', 'Perdida', 'No Go', 'Cancelada'];
+let _checkLock = false;
+
+// Genera un ID determinista para evitar duplicados inclusive con race conditions
+function notifDocId(tipo, usuarioUid, oppId) {
+  return `${tipo}_${usuarioUid}_${oppId}`;
+}
 
 async function notifyAsignacion(opp, creatorUid) {
   if (!opp.responsable || opp.responsableUid === creatorUid) return;
@@ -394,6 +400,8 @@ async function notifyEdicionTercero(opp, editorUid) {
 }
 
 async function checkEntregaProxima() {
+  if (_checkLock) return;
+  _checkLock = true;
   try {
     const snap = await firebase.firestore().collection('oportunidades').get();
     const allUsers = await AUTH.getAllUsers();
@@ -422,35 +430,22 @@ async function checkEntregaProxima() {
     });
     if (!notifs.length) return;
 
-    // Verificar notificaciones existentes para evitar duplicados
-    const uids = [...new Set(notifs.map(n => n.usuarioUid))];
-    const oppIds = [...new Set(notifs.map(n => n.oppId))];
-    const ek = (uid, oppId) => `${uid}:${oppId}`;
-    const existingSet = new Set();
-    for (const uid of uids) {
-      const snap = await firebase.firestore().collection('notificaciones')
-        .where('usuarioUid', '==', uid)
-        .where('tipo', '==', 'entrega_proxima')
-        .get();
-      snap.docs.forEach(d => {
-        const data = d.data();
-        if (oppIds.includes(data.oppId)) existingSet.add(ek(uid, data.oppId));
-      });
-    }
-
-    const newNotifs = notifs.filter(n => !existingSet.has(ek(n.usuarioUid, n.oppId)));
-    if (!newNotifs.length) return;
-
+    // ID determinista: mismo usuario + opp + tipo = mismo doc ID
+    // Si ya existe, set no crea duplicado, solo sobrescribe
     const batch = firebase.firestore().batch();
-    newNotifs.forEach(n => {
-      const ref = firebase.firestore().collection('notificaciones').doc();
-      batch.set(ref, { ...n, leida: false, fecha: new Date().toISOString() });
+    notifs.forEach(n => {
+      const docId = notifDocId(n.tipo, n.usuarioUid, n.oppId);
+      const ref = firebase.firestore().collection('notificaciones').doc(docId);
+      batch.set(ref, { ...n, leida: false, fecha: new Date().toISOString() }, { merge: true });
     });
     await batch.commit();
   } catch(e) { console.error('Error check entrega proxima:', e); }
+  finally { _checkLock = false; }
 }
 
 async function checkSinActualizar() {
+  if (_checkLock) return;
+  _checkLock = true;
   try {
     const snap = await firebase.firestore().collection('oportunidades').get();
     const allUsers = await AUTH.getAllUsers();
@@ -471,32 +466,16 @@ async function checkSinActualizar() {
     });
     if (!notifs.length) return;
 
-    // Verificar notificaciones existentes para evitar duplicados
-    const uids = [...new Set(notifs.map(n => n.usuarioUid))];
-    const oppIds = [...new Set(notifs.map(n => n.oppId))];
-    const ek = (uid, oppId) => `${uid}:${oppId}`;
-    const existingSet = new Set();
-    for (const uid of uids) {
-      const snap = await firebase.firestore().collection('notificaciones')
-        .where('usuarioUid', '==', uid)
-        .where('tipo', '==', 'sin_actualizar')
-        .get();
-      snap.docs.forEach(d => {
-        const data = d.data();
-        if (oppIds.includes(data.oppId)) existingSet.add(ek(uid, data.oppId));
-      });
-    }
-
-    const newNotifs = notifs.filter(n => !existingSet.has(ek(n.usuarioUid, n.oppId)));
-    if (!newNotifs.length) return;
-
+    // ID determinista: mismo usuario + opp + tipo = mismo doc ID
     const batch = firebase.firestore().batch();
-    newNotifs.forEach(n => {
-      const ref = firebase.firestore().collection('notificaciones').doc();
-      batch.set(ref, { ...n, leida: false, fecha: new Date().toISOString() });
+    notifs.forEach(n => {
+      const docId = notifDocId(n.tipo, n.usuarioUid, n.oppId);
+      const ref = firebase.firestore().collection('notificaciones').doc(docId);
+      batch.set(ref, { ...n, leida: false, fecha: new Date().toISOString() }, { merge: true });
     });
     await batch.commit();
   } catch(e) { console.error('Error check sin actualizar:', e); }
+  finally { _checkLock = false; }
 }
 
 // ── CLIENTES ÚNICOS ──
