@@ -412,6 +412,7 @@ async function checkEntregaProxima() {
       if (!opp.fechaEntrega || ESTADOS_FINALES.includes(opp.estado)) return;
       const fechaEntrega = new Date(opp.fechaEntrega + 'T00:00:00');
       const diffDays = Math.ceil((fechaEntrega - hoy) / (1000 * 60 * 60 * 24));
+      console.log(`[checkEntrega] ${opp.codigo || opp.nombre}: fecha=${opp.fechaEntrega}, diffDays=${diffDays}, estado=${opp.estado}`);
       if (diffDays < 0 || diffDays > 3) return;
       const targets = [];
       if (opp.responsable) {
@@ -428,6 +429,7 @@ async function checkEntregaProxima() {
           oppId: doc.id, oppNombre: opp.nombre || '' });
       });
     });
+    console.log(`[checkEntrega] Notifs a crear: ${notifs.length}`, notifs.map(n => `${n.oppId}->${n.usuarioUid}`));
     if (!notifs.length) return;
 
     // ID determinista: mismo usuario + opp + tipo = mismo doc ID
