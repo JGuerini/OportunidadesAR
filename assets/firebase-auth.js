@@ -158,25 +158,4 @@ async function addUser(data) {
   }
 }
 
-// ── SEND PASSWORD RESET ──
-async function sendPasswordReset(email) {
-  try {
-    await firebase.auth().sendPasswordResetEmail(email);
-    return { ok: true };
-  } catch(e) {
-    const msg = {
-      'auth/user-not-found': 'No existe un usuario con ese email.',
-      'auth/invalid-email':  'Email invalido.'
-    }[e.code] || e.message || 'Error al enviar email de reseteo.';
-    return { ok: false, error: msg };
-  }
-}
-
-// ── LISTEN FOR AUTH STATE ──
-function onAuthChange(callback) {
-  firebase.auth().onAuthStateChanged(user => {
-    callback(user);
-  });
-}
-
-window.AUTH = { login, getSession, refreshSession, logout, requireAuth, changePassword, getAllUsers, updateUser, addUser, sendPasswordReset, onAuthChange };
+window.AUTH = { login, getSession, refreshSession, logout, requireAuth, changePassword, getAllUsers, updateUser, addUser };

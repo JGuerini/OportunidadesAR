@@ -51,9 +51,6 @@ const INDUSTRIAS = [
   'Transporte y Logística'
 ];
 
-const PRACTICAS = ['AM','CES','Consultoría','DWP','Enablon','HCI','IA','SAP','Testing'];
-const CURRENCIES = ['ARS','CLP','EUR','USD'];
-
 function colorForValue(str) {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -221,22 +218,8 @@ function friendlyId(r) {
   return r.codigo || r.id.substring(0, 8);
 }
 
-function canEdit(r) {
-  const s = AUTH.getSession();
-  if (!s) return false;
-  return s.perfil === 'admin' || r.responsable === s.nombre;
-}
-
 function badgeEstado(e) {
   return { 'En Desarrollo': 'badge-desarrollo', 'Entregada': 'badge-entregada', 'Pausa': 'badge-pausa', 'No Go': 'badge-nogo', 'Cancelada': 'badge-cancelada', 'Perdida': 'badge-perdido', 'Ganada': 'badge-ganado' }[e] || '';
-}
-
-function showAlert(id, msg, type) {
-  const box = document.getElementById(id);
-  if (!box) return;
-  box.textContent = msg;
-  box.className = `alert alert-${type} show`;
-  setTimeout(() => box.className = 'alert', 5000);
 }
 
 // ══════════════════════════════════════════════
@@ -1063,10 +1046,6 @@ function renderTabla(page) {
   renderPagination('todasPagination', pg, (p) => renderTabla(p));
 }
 
-function editFromTabla(id) {
-  openEditModal(id);
-}
-
 async function verOportunidad(id) {
   let r = _tablaRows.find(x => x.id === id) || _kanbanRows.find(x => x.id === id) || _calRows.find(x => x.id === id) || _misRows.find(x => x.id === id);
   if (!r) r = await CRM.getOportunidad(id);
@@ -1194,7 +1173,14 @@ async function downloadExcelAction() {
 // ── BACKUP / RESTORE JSON ──
 async function exportJSONBackupAction() {
   try {
-    await CRM.exportJSONBackup();
+    const result = await CRM.exportJSONBackup();
+    const json = JSON.stringify(result, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `backup_oportunidades_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
     TOAST.success('Backup descargado correctamente.');
   } catch(e) {
     TOAST.error('Error al generar el backup.');
@@ -1221,7 +1207,9 @@ async function importJSONBackupAction() {
   progressBar.style.width = '0%';
 
   try {
-    const totals = await CRM.importJSONBackup(file, (step, current, total) => {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    const totals = await CRM.importJSONBackup(data, (step, current, total) => {
       progressText.textContent = `Importando ${step}...`;
       progressCount.textContent = `${current}/${total}`;
       const overallPct = Math.round(((step === 'Counter actualizado' ? 1 : 0) + current) / Math.max(1, total) * 100);
@@ -2193,6 +2181,7 @@ function updateImportProgress(current, total) {
 // ══════════════════════════════════════════════
 let _kanbanRows = [];
 let _kanbanDragId = null;
+let _kanbanDragEstado = null;
 let _hiddenKanbanCols = [];
 
 function loadKanbanColFilter() {
@@ -2644,7 +2633,7 @@ async function initLog() {
 }
 
 function verOportunidadLog(id) {
-  openEditModal(id);
+  verOportunidad(id);
 }
 
 // ══════════════════════════════════════════════
@@ -2870,7 +2859,6 @@ function initApp() {
   // Ocultar secciones para "solo lectura"
   if (session.perfil === 'solo lectura') {
     document.getElementById('btnNueva').style.display = 'none';
-    document.getElementById('btnModificar').style.display = 'none';
     document.getElementById('btnMis').style.display = 'none';
     document.querySelectorAll('.btn-nueva-oport').forEach(b => b.style.display = 'none');
   }

@@ -2,16 +2,7 @@
 
 const OPORTUNIDADES_COL = 'oportunidades';
 
-const COLUMNS = [
-  'codigo', 'cliente', 'industria', 'practica',
-  'nombre', 'descripcion', 'origen', 'fertilizacion',
-  'responsable', 'responsableUid', 'estado', 'fechaInicio', 'fechaEntrega',
-  'notas', 'sharepoint', 'tcv', 'currency', 'tcvEur', 'tipoCambio',
-  'probabilidad', 'pm', 'fechaCreacion', 'fechaModificacion'
-];
-
 const ESTADOS  = ['En Desarrollo', 'Entregada', 'Pausa', 'No Go', 'Cancelada', 'Perdida', 'Ganada'];
-const ORIGENES = ['Fertilización', 'Otro', 'Proyecto', 'Renovación', 'RFP'];
 const ESTADO_COLORS = {
   'En Desarrollo': '#fde68a',
   'Entregada':     '#93c5fd',
@@ -577,5 +568,5 @@ window.CRM = {
   createNotificacion, onNotificacionesChange, markNotificacionLeida, markAllNotificacionesLeidas,
   notifyAsignacion, notifyEdicionTercero, checkEntregaProxima, checkSinActualizar,
   exportJSONBackup, importJSONBackup,
-  COLUMNS, ESTADOS, ORIGENES, ESTADO_COLORS, invalidateCache
+  ESTADOS, ESTADO_COLORS, invalidateCache
 };
