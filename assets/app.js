@@ -195,23 +195,22 @@ function fmtEUR(n) {
   return '€' + Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
-function fmtFechaRelativa(fechaISO) {
-  if (!fechaISO) return '';
-  const ahora = new Date();
-  const fecha = new Date(fechaISO);
-  if (isNaN(fecha.getTime())) return '';
-  const diffMs = ahora - fecha;
-  const diffSeg = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSeg / 60);
-  const diffHor = Math.floor(diffMin / 60);
-  const diffDias = Math.floor(diffHor / 24);
-  if (diffSeg < 60) return 'hace un momento';
-  if (diffMin < 60) return 'hace ' + diffMin + ' min';
-  if (diffHor < 24) return 'hace ' + diffHor + 'h';
-  if (diffDias === 1) return 'ayer';
-  if (diffDias < 7) return 'hace ' + diffDias + ' dias';
-  if (diffDias < 30) return 'hace ' + Math.floor(diffDias / 7) + ' sem';
-  return fmtFecha(fechaISO);
+// Unifica las 3 versiones anteriores (fmtFechaRelativa, NOTIF._timeAgo, timeAgo)
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const now  = new Date();
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return '';
+  const diffMin  = Math.floor((now - date) / 60000);
+  const diffHrs  = Math.floor(diffMin / 60);
+  const diffDays = Math.floor(diffHrs / 24);
+  if (diffMin < 1) return 'hace un momento';
+  if (diffMin < 60) return `hace ${diffMin} min`;
+  if (diffHrs < 24) return `hace ${diffHrs}h`;
+  if (diffDays === 1) return 'ayer';
+  if (diffDays < 7) return `hace ${diffDays} días`;
+  if (diffDays < 30) return `hace ${Math.floor(diffDays / 7)} sem`;
+  return fmtFecha(dateStr);
 }
 
 function friendlyId(r) {
@@ -405,7 +404,7 @@ const NOTIF = {
     const ICONS = { entrega_proxima: '\u23F0', sin_actualizar: '\u26A0', edicion_tercero: '\u270F', nueva_asignacion: '\u2795' };
     list.innerHTML = this._notifs.map(n => {
       const icon = ICONS[n.tipo] || '\uD83D\uDD14';
-      const time = this._timeAgo(n.fecha);
+      const time = timeAgo(n.fecha);
       return `<div class="notif-item" onclick="NOTIF.clickNotif('${n.id}','${n.oppId}')">
         <div class="notif-icon ${escapeHtml(n.tipo)}">${icon}</div>
         <div class="notif-body">
@@ -427,20 +426,6 @@ const NOTIF = {
     const ids = this._notifs.map(n => n.id);
     await CRM.markAllNotificacionesLeidas(ids);
     TOAST.success('Notificaciones marcadas como leídas.');
-  },
-
-  _timeAgo(dateStr) {
-    const now = new Date();
-    const date = new Date(dateStr);
-    const diffMs = now - date;
-    const diffMin = Math.floor(diffMs / 60000);
-    if (diffMin < 1) return 'Ahora';
-    if (diffMin < 60) return `Hace ${diffMin} min`;
-    const diffH = Math.floor(diffMin / 60);
-    if (diffH < 24) return `Hace ${diffH}h`;
-    const diffD = Math.floor(diffH / 24);
-    if (diffD < 7) return `Hace ${diffD}d`;
-    return date.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' });
   }
 };
 
@@ -885,66 +870,88 @@ async function refreshCurrentPage() {
 // ══════════════════════════════════════════════
 let _tablaRows = [], _sortKey = 'fechaCreacion', _sortDir = -1, _tablaPage = 1;
 let _bulkTodas = new Set();
+let _misRows = [], _misSortKey = 'fechaCreacion', _misSortDir = -1, _misPage = 1;
+let _bulkMis = new Set();
 
 function isAdmin() { const s = AUTH.getSession(); return s && s.perfil === 'admin'; }
 
-function toggleBulkTodas() {
-  const allIds = _tablaRows.map(r => r.id);
-  const allSelected = allIds.every(id => _bulkTodas.has(id));
-  _bulkTodas.clear();
-  if (!allSelected) allIds.forEach(id => _bulkTodas.add(id));
-  updateBulkTodasUI();
-}
-
-function toggleBulkRowTodas(id) {
-  if (_bulkTodas.has(id)) _bulkTodas.delete(id);
-  else _bulkTodas.add(id);
-  updateBulkTodasUI();
-}
-
-function updateBulkTodasUI() {
-  const bar = document.getElementById('todasBulkBar');
-  const count = _bulkTodas.size;
-  document.getElementById('todasBulkCount').textContent = count;
-  bar.style.display = count > 0 ? 'flex' : 'none';
-  // Update header checkbox
-  const headCb = document.querySelector('#todasCheckHead .bulk-cb');
-  if (headCb) {
-    const allIds = _tablaRows.map(r => r.id);
-    const allSelected = allIds.length > 0 && allIds.every(id => _bulkTodas.has(id));
-    headCb.classList.toggle('checked', allSelected);
+// ══════════════════════════════════════════════
+// BULK OPERATIONS (generic factory)
+// ══════════════════════════════════════════════
+function createBulkManager({ set, getRows, barId, countId, checkHeadId, bodyId }) {
+  function toggleAll() {
+    const allIds = getRows().map(r => r.id);
+    const allSelected = allIds.every(id => set.has(id));
+    set.clear();
+    if (!allSelected) allIds.forEach(id => set.add(id));
+    updateUI();
   }
-  // Update row checkboxes
-  document.querySelectorAll('#todasBody tr').forEach(tr => {
-    const id = tr.dataset.id;
-    const cb = tr.querySelector('.row-cb .bulk-cb');
-    if (cb) cb.classList.toggle('checked', _bulkTodas.has(id));
-    tr.classList.toggle('row-selected', _bulkTodas.has(id));
-  });
-}
-
-function clearBulkTodas() {
-  _bulkTodas.clear();
-  updateBulkTodasUI();
-}
-
-async function bulkDeleteTodas() {
-  if (_bulkTodas.size === 0) return;
-  if (!confirm(`¿Seguro que querés eliminar ${_bulkTodas.size} oportunidad(es)?`)) return;
-  let ok = 0, fail = 0;
-  for (const id of _bulkTodas) {
-    try {
-      const r = findRowById(id) || {};
-      await CRM.deleteOportunidad(id);
-      CRM.logEvento('eliminacion', 'Eliminó la oportunidad (bulk)', id, r.codigo, r.nombre);
-      ok++;
-    } catch(e) { fail++; }
+  function toggleRow(id) {
+    if (set.has(id)) set.delete(id);
+    else set.add(id);
+    updateUI();
   }
-  _bulkTodas.clear();
-  CRM.invalidateCache();
-  TOAST.success(`${ok} eliminada(s).${fail ? ` ${fail} error(es).` : ''}`);
-  await refreshCurrentPage();
+  function updateUI() {
+    const bar = document.getElementById(barId);
+    const count = set.size;
+    document.getElementById(countId).textContent = count;
+    bar.style.display = count > 0 ? 'flex' : 'none';
+    const headCb = document.querySelector(`#${checkHeadId} .bulk-cb`);
+    if (headCb) {
+      const allIds = getRows().map(r => r.id);
+      headCb.classList.toggle('checked', allIds.length > 0 && allIds.every(id => set.has(id)));
+    }
+    document.querySelectorAll(`#${bodyId} tr`).forEach(tr => {
+      const id = tr.dataset.id;
+      const cb = tr.querySelector('.row-cb .bulk-cb');
+      if (cb) cb.classList.toggle('checked', set.has(id));
+      tr.classList.toggle('row-selected', set.has(id));
+    });
+  }
+  function clear() { set.clear(); updateUI(); }
+  async function deleteSelected() {
+    if (set.size === 0) return;
+    if (!confirm(`¿Seguro que querés eliminar ${set.size} oportunidad(es)?`)) return;
+    let ok = 0, fail = 0;
+    for (const id of set) {
+      try {
+        const r = findRowById(id) || {};
+        await CRM.deleteOportunidad(id);
+        CRM.logEvento('eliminacion', 'Eliminó la oportunidad (bulk)', id, r.codigo, r.nombre);
+        ok++;
+      } catch(e) { fail++; }
+    }
+    set.clear();
+    CRM.invalidateCache();
+    TOAST.success(`${ok} eliminada(s).${fail ? ` ${fail} error(es).` : ''}`);
+    await refreshCurrentPage();
+  }
+  return { toggleAll, toggleRow, updateUI, clear, deleteSelected };
 }
+
+const bulkTodas = createBulkManager({
+  set: _bulkTodas, getRows: () => _tablaRows,
+  barId: 'todasBulkBar', countId: 'todasBulkCount',
+  checkHeadId: 'todasCheckHead', bodyId: 'todasBody'
+});
+
+const bulkMis = createBulkManager({
+  set: _bulkMis, getRows: () => _misRows,
+  barId: 'misBulkBar', countId: 'misBulkCount',
+  checkHeadId: 'misCheckHead', bodyId: 'misBody'
+});
+
+// Thin wrappers for HTML onclick handlers
+function toggleBulkTodas()  { bulkTodas.toggleAll(); }
+function toggleBulkRowTodas(id) { bulkTodas.toggleRow(id); }
+function updateBulkTodasUI() { bulkTodas.updateUI(); }
+function clearBulkTodas()   { bulkTodas.clear(); }
+function bulkDeleteTodas()  { bulkTodas.deleteSelected(); }
+function toggleBulkMis()    { bulkMis.toggleAll(); }
+function toggleBulkRowMis(id) { bulkMis.toggleRow(id); }
+function updateBulkMisUI()  { bulkMis.updateUI(); }
+function clearBulkMis()     { bulkMis.clear(); }
+function bulkDeleteMis()    { bulkMis.deleteSelected(); }
 
 async function initTabla(silent = false) {
   if (!silent) {
@@ -1047,7 +1054,7 @@ function renderTabla(page) {
 }
 
 async function verOportunidad(id) {
-  let r = _tablaRows.find(x => x.id === id) || _kanbanRows.find(x => x.id === id) || _calRows.find(x => x.id === id) || _misRows.find(x => x.id === id);
+  let r = findRowById(id);
   if (!r) r = await CRM.getOportunidad(id);
   if (!r) return;
 
@@ -1123,24 +1130,17 @@ async function verOportunidad(id) {
       return;
     }
 
-    const accionConfig = {
-      creacion:     { label: 'Creación',     color: '#22c55e', icon: '+' },
-      edicion:      { label: 'Edición',      color: '#3b82f6', icon: '~' },
-      cambio_estado:{ label: 'Cambio Estado', color: '#f59e0b', icon: '↕' },
-      eliminacion:  { label: 'Eliminación',  color: '#ef4444', icon: '×' }
-    };
-
     const timelineHTML = logs.map((log, i) => {
-      const cfg = accionConfig[log.accion] || accionConfig.edicion;
-      const isLast = i === logs.length - 1;
-      return `
+      const cfg = ACCION_STYLES[log.accion] || ACCION_STYLES.edicion;
+    const isLast = i === logs.length - 1;
+    return `
         <div class="timeline-item">
           <div class="timeline-line${isLast ? ' timeline-line-last' : ''}"></div>
           <div class="timeline-dot" style="background:${cfg.color};box-shadow:0 0 0 3px color-mix(in srgb, ${cfg.color} 20%, transparent)"></div>
           <div class="timeline-content">
             <div class="timeline-header">
               <span class="timeline-badge" style="background:${cfg.color}">${cfg.icon} ${escapeHtml(cfg.label)}</span>
-              <span class="timeline-date">${fmtFechaRelativa(log.fecha)}</span>
+              <span class="timeline-date">${timeAgo(log.fecha)}</span>
             </div>
             <div class="timeline-detail">${escapeHtml(log.detalle)}</div>
             ${log.usuario ? `<div class="timeline-user">${escapeHtml(log.usuario)}</div>` : ''}
@@ -2427,64 +2427,6 @@ async function handleKanbanDrop(id, newEstado) {
 // ══════════════════════════════════════════════
 // MIS OPORTUNIDADES
 // ══════════════════════════════════════════════
-let _misRows = [], _misSortKey = 'fechaCreacion', _misSortDir = -1, _misPage = 1;
-let _bulkMis = new Set();
-
-function toggleBulkMis() {
-  const allIds = _misRows.map(r => r.id);
-  const allSelected = allIds.every(id => _bulkMis.has(id));
-  _bulkMis.clear();
-  if (!allSelected) allIds.forEach(id => _bulkMis.add(id));
-  updateBulkMisUI();
-}
-
-function toggleBulkRowMis(id) {
-  if (_bulkMis.has(id)) _bulkMis.delete(id);
-  else _bulkMis.add(id);
-  updateBulkMisUI();
-}
-
-function updateBulkMisUI() {
-  const bar = document.getElementById('misBulkBar');
-  const count = _bulkMis.size;
-  document.getElementById('misBulkCount').textContent = count;
-  bar.style.display = count > 0 ? 'flex' : 'none';
-  const headCb = document.querySelector('#misCheckHead .bulk-cb');
-  if (headCb) {
-    const allIds = _misRows.map(r => r.id);
-    const allSelected = allIds.length > 0 && allIds.every(id => _bulkMis.has(id));
-    headCb.classList.toggle('checked', allSelected);
-  }
-  document.querySelectorAll('#misBody tr').forEach(tr => {
-    const id = tr.dataset.id;
-    const cb = tr.querySelector('.row-cb .bulk-cb');
-    if (cb) cb.classList.toggle('checked', _bulkMis.has(id));
-    tr.classList.toggle('row-selected', _bulkMis.has(id));
-  });
-}
-
-function clearBulkMis() {
-  _bulkMis.clear();
-  updateBulkMisUI();
-}
-
-async function bulkDeleteMis() {
-  if (_bulkMis.size === 0) return;
-  if (!confirm(`¿Seguro que querés eliminar ${_bulkMis.size} oportunidad(es)?`)) return;
-  let ok = 0, fail = 0;
-  for (const id of _bulkMis) {
-    try {
-      const r = findRowById(id) || {};
-      await CRM.deleteOportunidad(id);
-      CRM.logEvento('eliminacion', 'Eliminó la oportunidad (bulk)', id, r.codigo, r.nombre);
-      ok++;
-    } catch(e) { fail++; }
-  }
-  _bulkMis.clear();
-  CRM.invalidateCache();
-  TOAST.success(`${ok} eliminada(s).${fail ? ` ${fail} error(es).` : ''}`);
-  await refreshCurrentPage();
-}
 
 async function initMis(silent = false) {
   if (!silent) {
@@ -2561,19 +2503,6 @@ function renderMis(page) {
 // ══════════════════════════════════════════════
 // LOG DE EVENTOS
 // ══════════════════════════════════════════════
-function timeAgo(dateStr) {
-  const now = new Date();
-  const date = new Date(dateStr);
-  const diffMs = now - date;
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return 'Ahora mismo';
-  if (diffMin < 60) return `Hace ${diffMin} min`;
-  const diffHrs = Math.floor(diffMin / 60);
-  if (diffHrs < 24) return `Hace ${diffHrs}h`;
-  const diffDays = Math.floor(diffHrs / 24);
-  if (diffDays < 7) return `Hace ${diffDays}d`;
-  return date.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' });
-}
 
 const ACCION_STYLES = {
   creacion:      { icon: '➕', color: '#22c55e', label: 'Creación' },

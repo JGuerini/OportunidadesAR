@@ -390,6 +390,25 @@ async function notifyEdicionTercero(opp, editorUid) {
     opp.id, opp.nombre);
 }
 
+// ── HELPER: crear notificaciones con ID determinista (sin duplicados) ──
+async function createDeterministicNotifs(notifs) {
+  if (!notifs.length) return;
+  const toCreate = [];
+  for (const n of notifs) {
+    const docId = notifDocId(n.tipo, n.usuarioUid, n.oppId);
+    const ref = firebase.firestore().collection('notificaciones').doc(docId);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      toCreate.push({ ref, data: { ...n, leida: false, fecha: new Date().toISOString() } });
+    }
+  }
+  if (toCreate.length) {
+    const batch = firebase.firestore().batch();
+    toCreate.forEach(({ ref, data }) => batch.set(ref, data));
+    await batch.commit();
+  }
+}
+
 async function checkEntregaProxima() {
   if (_checkLock) return;
   _checkLock = true;
@@ -419,23 +438,7 @@ async function checkEntregaProxima() {
           oppId: doc.id, oppNombre: opp.nombre || '' });
       });
     });
-    if (!notifs.length) return;
-
-    // ID determinista: solo crear si no existe (no sobrescribir leida ni fecha)
-    const toCreate = [];
-    for (const n of notifs) {
-      const docId = notifDocId(n.tipo, n.usuarioUid, n.oppId);
-      const ref = firebase.firestore().collection('notificaciones').doc(docId);
-      const doc = await ref.get();
-      if (!doc.exists) {
-        toCreate.push({ ref, data: { ...n, leida: false, fecha: new Date().toISOString() } });
-      }
-    }
-    if (toCreate.length) {
-      const batch = firebase.firestore().batch();
-      toCreate.forEach(({ ref, data }) => batch.set(ref, data));
-      await batch.commit();
-    }
+    await createDeterministicNotifs(notifs);
   } catch(e) { console.error('Error check entrega proxima:', e); }
   finally { _checkLock = false; }
 }
@@ -461,23 +464,7 @@ async function checkSinActualizar() {
         mensaje: `"${opp.nombre || opp.codigo}" lleva ${diffDays} días sin modificaciones`,
         oppId: doc.id, oppNombre: opp.nombre || '' });
     });
-    if (!notifs.length) return;
-
-    // ID determinista: solo crear si no existe (no sobrescribir leida ni fecha)
-    const toCreate = [];
-    for (const n of notifs) {
-      const docId = notifDocId(n.tipo, n.usuarioUid, n.oppId);
-      const ref = firebase.firestore().collection('notificaciones').doc(docId);
-      const doc = await ref.get();
-      if (!doc.exists) {
-        toCreate.push({ ref, data: { ...n, leida: false, fecha: new Date().toISOString() } });
-      }
-    }
-    if (toCreate.length) {
-      const batch = firebase.firestore().batch();
-      toCreate.forEach(({ ref, data }) => batch.set(ref, data));
-      await batch.commit();
-    }
+    await createDeterministicNotifs(notifs);
   } catch(e) { console.error('Error check sin actualizar:', e); }
   finally { _checkLock = false; }
 }
