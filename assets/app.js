@@ -218,7 +218,34 @@ function friendlyId(r) {
 }
 
 function badgeEstado(e) {
-  return { 'En Desarrollo': 'badge-desarrollo', 'Entregada': 'badge-entregada', 'Pausa': 'badge-pausa', 'No Go': 'badge-nogo', 'Cancelada': 'badge-cancelada', 'Perdida': 'badge-perdido', 'Ganada': 'badge-ganado' }[e] || '';
+  const exceptions = { 'Perdida': 'perdido', 'Ganada': 'ganado', 'No Go': 'nogo' };
+  return e ? 'badge-' + (exceptions[e] || e.split(' ').pop().toLowerCase()) : '';
+}
+
+function getInitials(nombre) {
+  return (nombre || '').split(' ').map(n => n[0]).slice(0, 2).join('');
+}
+
+function showLoading(loadingId, contentId) {
+  const el = document.getElementById(loadingId);
+  const ct = document.getElementById(contentId);
+  if (el) el.style.display = 'flex';
+  if (ct) ct.style.display = 'none';
+}
+
+function hideLoading(loadingId, contentId, display = 'block') {
+  const el = document.getElementById(loadingId);
+  const ct = document.getElementById(contentId);
+  if (el) el.style.display = 'none';
+  if (ct) ct.style.display = display;
+}
+
+function downloadBlob(data, filename, mimeType) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([data], { type: mimeType || 'application/octet-stream' }));
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 // ══════════════════════════════════════════════
@@ -326,26 +353,16 @@ function navigate(btn) {
   onPageEnter(page);
 }
 
-function onPageEnter(page) {
+function onPageEnter(page, silent = false) {
   if      (page === 'home')         renderHome();
-  else if (page === 'mis')          initMis();
-  else if (page === 'todas')        initTabla();
-  else if (page === 'kanban')       initKanban();
-  else if (page === 'calendario')   initCalendario();
-  else if (page === 'estadisticas') renderStats();
+  else if (page === 'mis')          initMis(silent);
+  else if (page === 'todas')        initTabla(silent);
+  else if (page === 'kanban')       initKanban(silent);
+  else if (page === 'calendario')   initCalendario(silent);
+  else if (page === 'estadisticas') renderStats(silent);
   else if (page === 'perfil')       renderPerfil();
   else if (page === 'log')          initLog();
   else if (page === 'usuarios')     loadUsuarios();
-}
-
-// Versión silenciosa: sin loaders, usada por el listener onSnapshot
-function onPageEnterSilent(page) {
-  if      (page === 'home')         renderHome();
-  else if (page === 'mis')          initMis(true);
-  else if (page === 'todas')        initTabla(true);
-  else if (page === 'kanban')       initKanban(true);
-  else if (page === 'calendario')   initCalendario(true);
-  else if (page === 'estadisticas') renderStats(true);
 }
 
 // ══════════════════════════════════════════════
@@ -954,15 +971,9 @@ function clearBulkMis()     { bulkMis.clear(); }
 function bulkDeleteMis()    { bulkMis.deleteSelected(); }
 
 async function initTabla(silent = false) {
-  if (!silent) {
-    document.getElementById('todasLoading').style.display = 'flex';
-    document.getElementById('todasTable').style.display = 'none';
-  }
+  if (!silent) showLoading('todasLoading', 'todasTable');
   _tablaRows = await CRM.getData();
-  if (!silent) {
-    document.getElementById('todasLoading').style.display = 'none';
-    document.getElementById('todasTable').style.display = 'block';
-  }
+  if (!silent) hideLoading('todasLoading', 'todasTable');
 
   // Show/hide bulk checkbox column for admin
   document.getElementById('todasCheckHead').style.display = isAdmin() ? '' : 'none';
@@ -1175,12 +1186,7 @@ async function exportJSONBackupAction() {
   try {
     const result = await CRM.exportJSONBackup();
     const json = JSON.stringify(result, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `backup_oportunidades_${new Date().toISOString().slice(0,10)}.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+    downloadBlob(json, `backup_oportunidades_${new Date().toISOString().slice(0,10)}.json`, 'application/json');
     TOAST.success('Backup descargado correctamente.');
   } catch(e) {
     TOAST.error('Error al generar el backup.');
@@ -1243,15 +1249,9 @@ const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto'
 const DIAS_SEMANA = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
 
 async function initCalendario(silent = false) {
-  if (!silent) {
-    document.getElementById('calLoading').style.display = 'flex';
-    document.getElementById('calContent').style.display = 'none';
-  }
+  if (!silent) showLoading('calLoading', 'calContent');
   _calRows = await CRM.getData();
-  if (!silent) {
-    document.getElementById('calLoading').style.display = 'none';
-    document.getElementById('calContent').style.display = 'block';
-  }
+  if (!silent) hideLoading('calLoading', 'calContent');
   if (_calYear === undefined) {
     const now = new Date();
     _calYear = now.getFullYear();
@@ -1653,17 +1653,11 @@ async function renderStats(silent = false) {
   // Actualizar UI del selector de período
   updateStatsPeriodUI();
 
-  if (!silent) {
-    document.getElementById('statsLoading').style.display = 'flex';
-    document.getElementById('statsContent').style.display = 'none';
-  }
+  if (!silent) showLoading('statsLoading', 'statsContent');
   Object.values(_statsCharts).forEach(c => { try { c.destroy(); } catch(e) {} });
   _statsCharts = {};
   const allRows = await CRM.getData();
-  if (!silent) {
-    document.getElementById('statsLoading').style.display = 'none';
-    document.getElementById('statsContent').style.display = 'block';
-  }
+  if (!silent) hideLoading('statsLoading', 'statsContent');
 
   // Filtrar por período seleccionado
   const range = getStatsDateRange();
@@ -1764,7 +1758,7 @@ function renderPerfil() {
   const perfBadge = s.perfil === 'admin' ? 'badge-admin' : 'badge-usuario';
   document.getElementById('perfilInfo').innerHTML =
     `<div style="display:flex;align-items:center;gap:16px;margin-bottom:24px">
-      <div style="width:56px;height:56px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;flex-shrink:0">${escapeHtml(s.nombre.split(' ').map(n => n[0]).slice(0, 2).join(''))}</div>
+      <div style="width:56px;height:56px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;flex-shrink:0">${escapeHtml(getInitials(s.nombre))}</div>
       <div><div style="font-size:16px;font-weight:700">${escapeHtml(s.nombre)}</div><div style="font-size:12px;color:var(--text-muted);margin-top:2px">${escapeHtml(s.email)}</div></div>
     </div>
     ${infoRow('Perfil', `<span class="badge ${perfBadge}">${escapeHtml(s.perfil)}</span>`)}
@@ -1984,10 +1978,7 @@ function downloadTemplate() {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Oportunidades');
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([wbout], { type: 'application/octet-stream' }));
-  a.download = 'plantilla_oportunidades.xlsx';
-  a.click();
+  downloadBlob(wbout, 'plantilla_oportunidades.xlsx');
   TOAST.success('Plantilla descargada.');
 }
 
@@ -2250,12 +2241,7 @@ document.addEventListener('click', (e) => {
 });
 
 async function initKanban(silent = false) {
-  const loading = document.getElementById('kanbanLoading');
-  const board = document.getElementById('kanbanBoard');
-  if (!silent) {
-    loading.style.display = 'flex';
-    board.style.display = 'none';
-  }
+  if (!silent) showLoading('kanbanLoading', 'kanbanBoard');
 
   loadKanbanColFilter();
   buildColFilterDropdown();
@@ -2277,10 +2263,7 @@ async function initKanban(silent = false) {
     selR.style.display = 'none';
   }
 
-  if (!silent) {
-    loading.style.display = 'none';
-    board.style.display = 'flex';
-  }
+  if (!silent) hideLoading('kanbanLoading', 'kanbanBoard', 'flex');
   renderKanban();
 }
 
@@ -2429,17 +2412,11 @@ async function handleKanbanDrop(id, newEstado) {
 // ══════════════════════════════════════════════
 
 async function initMis(silent = false) {
-  if (!silent) {
-    document.getElementById('misLoading').style.display = 'flex';
-    document.getElementById('misTable').style.display = 'none';
-  }
+  if (!silent) showLoading('misLoading', 'misTable');
   const session = AUTH.getSession();
   const raw = await CRM.getData();
   _misRows = raw.filter(r => r.responsable === session.nombre);
-  if (!silent) {
-    document.getElementById('misLoading').style.display = 'none';
-    document.getElementById('misTable').style.display = 'block';
-  }
+  if (!silent) hideLoading('misLoading', 'misTable');
 
   // Show/hide bulk checkbox column for admin
   document.getElementById('misCheckHead').style.display = isAdmin() ? '' : 'none';
@@ -2779,7 +2756,7 @@ function initApp() {
   if (!session) return;
 
   // User info
-  document.getElementById('userAvatar').textContent = session.nombre.split(' ').map(n => n[0]).slice(0, 2).join('');
+  document.getElementById('userAvatar').textContent = getInitials(session.nombre);
   document.getElementById('userName').textContent   = session.nombre.split(' ').slice(0, 2).join(' ');
   document.getElementById('userPerfil').textContent = session.perfil;
   if (session.perfil === 'admin') document.getElementById('btnUsuarios').style.display = 'flex';
@@ -2812,7 +2789,7 @@ function initApp() {
       const page = activeSection.id.replace('page-', '');
       // Re-render la seccion activa con datos actualizados (silent = sin loaders)
       if (['home', 'mis', 'todas', 'kanban', 'calendario', 'estadisticas'].includes(page)) {
-        onPageEnterSilent(page);
+        onPageEnter(page, true);
       }
     }
   });
