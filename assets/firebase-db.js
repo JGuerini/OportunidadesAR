@@ -315,16 +315,19 @@ async function getLogByOppId(oppId, limit = 50) {
   }
 }
 
-async function getLogEventos(limit = 100) {
+async function getLogEventos(limit = 50, cursorDoc = null) {
   try {
-    const snap = await firebase.firestore().collection('log_eventos')
+    let query = firebase.firestore().collection('log_eventos')
       .orderBy('fecha', 'desc')
-      .limit(limit)
-      .get();
-    return snap.docs.map(d => d.data());
+      .limit(limit);
+    if (cursorDoc) query = query.startAfter(cursorDoc);
+    const snap = await query.get();
+    const events = snap.docs.map(d => d.data());
+    const lastDoc = snap.docs.length < limit ? null : snap.docs[snap.docs.length - 1];
+    return { events, lastDoc };
   } catch(e) {
     console.error('Error obteniendo log de eventos:', e);
-    return [];
+    return { events: [], lastDoc: null };
   }
 }
 

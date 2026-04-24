@@ -2488,22 +2488,31 @@ const ACCION_STYLES = {
   cambio_estado: { icon: '🔄', color: '#f59e0b', label: 'Cambio de estado' }
 };
 
+let _logEvents = [], _logLastDoc = null, _logHasMore = false;
+
 async function initLog() {
-  const loading = document.getElementById('logLoading');
-  const feed    = document.getElementById('logFeed');
-  const empty   = document.getElementById('logEmpty');
-  loading.style.display = 'flex';
-  feed.style.display = 'none';
-  empty.style.display = 'none';
+  _logEvents = [];
+  _logLastDoc = null;
+  _logHasMore = true;
+  showLoading('logLoading', 'logFeed');
 
-  const events = await CRM.getLogEventos(150);
-  loading.style.display = 'none';
+  const { events, lastDoc } = await CRM.getLogEventos(50);
+  _logEvents = events;
+  _logLastDoc = lastDoc;
+  _logHasMore = lastDoc !== null;
+  hideLoading('logLoading', 'logFeed');
 
-  if (events.length === 0) { empty.style.display = 'block'; return; }
+  if (events.length === 0) { document.getElementById('logEmpty').style.display = 'block'; return; }
+  document.getElementById('logEmpty').style.display = 'none';
+  renderLogFeed();
+}
+
+function renderLogFeed() {
+  const feed = document.getElementById('logFeed');
 
   // Agrupar por fecha
   const groups = {};
-  events.forEach(ev => {
+  _logEvents.forEach(ev => {
     const d = new Date(ev.fecha);
     const dayKey = d.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
     if (!groups[dayKey]) groups[dayKey] = [];
@@ -2534,8 +2543,25 @@ async function initLog() {
     });
   });
 
+  if (_logHasMore) {
+    html += `<div style="text-align:center;padding:20px 0">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Mostrando ${_logEvents.length} eventos</div>
+      <button class="btn btn-ghost" onclick="loadMoreLog()">Cargar más eventos</button>
+    </div>`;
+  } else {
+    html += `<div style="text-align:center;padding:16px 0;font-size:11px;color:var(--text-muted);font-style:italic">Mostrando todos los ${_logEvents.length} eventos</div>`;
+  }
+
   feed.innerHTML = html;
-  feed.style.display = 'block';
+}
+
+async function loadMoreLog() {
+  if (!_logLastDoc) return;
+  const { events, lastDoc } = await CRM.getLogEventos(50, _logLastDoc);
+  _logEvents = [..._logEvents, ...events];
+  _logLastDoc = lastDoc;
+  _logHasMore = lastDoc !== null;
+  renderLogFeed();
 }
 
 function verOportunidadLog(id) {
