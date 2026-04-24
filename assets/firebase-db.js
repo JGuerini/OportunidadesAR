@@ -430,15 +430,21 @@ async function checkEntregaProxima() {
     });
     if (!notifs.length) return;
 
-    // ID determinista: mismo usuario + opp + tipo = mismo doc ID
-    // Si ya existe, set no crea duplicado, solo sobrescribe
-    const batch = firebase.firestore().batch();
-    notifs.forEach(n => {
+    // ID determinista: solo crear si no existe (no sobrescribir leida ni fecha)
+    const toCreate = [];
+    for (const n of notifs) {
       const docId = notifDocId(n.tipo, n.usuarioUid, n.oppId);
       const ref = firebase.firestore().collection('notificaciones').doc(docId);
-      batch.set(ref, { ...n, leida: false, fecha: new Date().toISOString() }, { merge: true });
-    });
-    await batch.commit();
+      const doc = await ref.get();
+      if (!doc.exists) {
+        toCreate.push({ ref, data: { ...n, leida: false, fecha: new Date().toISOString() } });
+      }
+    }
+    if (toCreate.length) {
+      const batch = firebase.firestore().batch();
+      toCreate.forEach(({ ref, data }) => batch.set(ref, data));
+      await batch.commit();
+    }
   } catch(e) { console.error('Error check entrega proxima:', e); }
   finally { _checkLock = false; }
 }
@@ -466,14 +472,21 @@ async function checkSinActualizar() {
     });
     if (!notifs.length) return;
 
-    // ID determinista: mismo usuario + opp + tipo = mismo doc ID
-    const batch = firebase.firestore().batch();
-    notifs.forEach(n => {
+    // ID determinista: solo crear si no existe (no sobrescribir leida ni fecha)
+    const toCreate = [];
+    for (const n of notifs) {
       const docId = notifDocId(n.tipo, n.usuarioUid, n.oppId);
       const ref = firebase.firestore().collection('notificaciones').doc(docId);
-      batch.set(ref, { ...n, leida: false, fecha: new Date().toISOString() }, { merge: true });
-    });
-    await batch.commit();
+      const doc = await ref.get();
+      if (!doc.exists) {
+        toCreate.push({ ref, data: { ...n, leida: false, fecha: new Date().toISOString() } });
+      }
+    }
+    if (toCreate.length) {
+      const batch = firebase.firestore().batch();
+      toCreate.forEach(({ ref, data }) => batch.set(ref, data));
+      await batch.commit();
+    }
   } catch(e) { console.error('Error check sin actualizar:', e); }
   finally { _checkLock = false; }
 }
