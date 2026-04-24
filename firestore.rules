@@ -48,7 +48,7 @@ service cloud.firestore {
     match /notificaciones/{notifId} {
       allow read: if isAuthenticated() && (request.auth.uid == resource.data.usuarioUid || isAdmin());
       allow create: if isAdmin() || isUsuario();
-      allow update: if isAuthenticated() && request.auth.uid == resource.data.usuarioUid;
+      allow update: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.usuarioUid);
       allow delete: if isAuthenticated() && request.auth.uid == resource.data.usuarioUid;
     }
   }
