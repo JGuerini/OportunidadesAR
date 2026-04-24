@@ -529,10 +529,11 @@ async function renderHome() {
     ).join('');
   }
 
-  // Oportunidades próximas a entregar: con fechaEntrega futura, ordenadas de más próxima a más lejana
+  // Oportunidades próximas a entregar: con fechaEntrega futura, excluyendo estados finales, ordenadas de más próxima a más lejana
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const ESTADOS_FINALES_HOME = ['Ganada', 'Perdida', 'No Go', 'Cancelada', 'Entregada'];
   const proximas = rows
-    .filter(r => r.fechaEntrega && new Date(r.fechaEntrega + 'T23:59:59') >= hoy)
+    .filter(r => r.fechaEntrega && !ESTADOS_FINALES_HOME.includes(r.estado) && new Date(r.fechaEntrega + 'T23:59:59') >= hoy)
     .sort((a, b) => new Date(a.fechaEntrega) - new Date(b.fechaEntrega))
     .slice(0, 5);
   const recientesContent = document.getElementById('recientesContent');
