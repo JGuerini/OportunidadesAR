@@ -530,15 +530,19 @@ async function importJSONBackup(data, onProgress) {
     if (data.counter) {
       await firebase.firestore().collection('counters').doc('oportunidades').set(data.counter, { merge: true });
     }
-    // Log de eventos
+    // Log de eventos (Firestore batch limit: 500)
     const logs = data.log_eventos || [];
     if (logs.length) {
-      const batch = firebase.firestore().batch();
-      logs.forEach(log => {
-        const ref = firebase.firestore().collection('log_eventos').doc();
-        batch.set(ref, log);
-      });
-      await batch.commit();
+      const BATCH_LIMIT = 500;
+      for (let i = 0; i < logs.length; i += BATCH_LIMIT) {
+        const chunk = logs.slice(i, i + BATCH_LIMIT);
+        const batch = firebase.firestore().batch();
+        chunk.forEach(log => {
+          const ref = firebase.firestore().collection('log_eventos').doc();
+          batch.set(ref, log);
+        });
+        await batch.commit();
+      }
     }
     invalidateCache();
     return { oportunidades: opps.length, usuarios: users.length, log_eventos: logs.length };
