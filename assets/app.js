@@ -2995,6 +2995,10 @@ function initApp() {
   }
   window.addEventListener('resize', handleResize);
 
+  // Expose to global scope for HTML onclick
+  window.toggleMobileSidebar = toggleMobileSidebar;
+  window.closeMobileSidebar = closeMobileSidebar;
+
   // Sidebar toggle
   document.getElementById('toggleBtn').addEventListener('click', () =>
     document.getElementById('sidebar').classList.toggle('collapsed')
