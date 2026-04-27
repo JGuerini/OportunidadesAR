@@ -50,11 +50,14 @@ Gestión integral de pipeline comercial con seguimiento en tiempo real, análisi
 - **Ver Todas** — Listado completo de todas las oportunidades del sistema
 - **Ordenamiento por columna** — Click en encabezados para ordenar ascendente/descendente
 - **Búsqueda en tiempo real** — Filtro por texto libre
-- **Filtros múltiples** — Por estado, cliente, práctica y responsable
+- **Filtros múltiples** — Por estado, cliente, práctica, responsable e industria
+- **Filtro por rango de fechas** — Selector desplegable para filtrar por fecha de inicio (desde/hasta)
 - **Paginación** — 20 registros por página con navegación completa
 - **Selección masiva (admin)** — Checkboxes para seleccionar y eliminar múltiples registros
 - **Tooltips informativos** — Hover sobre nombre muestra *notas*, hover sobre estado muestra *fecha de entrega*
 - **Click para ver detalle** — Click en cualquier fila abre el modal de vista
+
+- **Exportar a Excel** — Descarga de todas las oportunidades (filtradas) en formato `.xlsx`
 
 ### Kanban Board
 
@@ -87,7 +90,9 @@ Gestión integral de pipeline comercial con seguimiento en tiempo real, análisi
 
 ### Estadísticas
 
-- **KPIs principales** — Oportunidades activas, En Desarrollo, Nuevas este mes, Oportunidades entregadas
+- **Navegación por período** — Filtros temporales: Mes actual, Trimestre, Año, Personalizado (rango de fechas) o Todo
+- **Filtros avanzados** — Multi-select dropdowns por estado, práctica, responsable, cliente e industria (independientes del período)
+- **KPIs principales** — Oportunidades activas, TCV EUR Total, Nuevas este período, Oportunidades entregadas
 - **Distribución por estado** — Gráfico doughnut con cantidades
 - **TCV EUR por estado** — Gráfico de barras con valores en euros
 - **Pipeline por estado** — Funnel chart horizontal con barras proporcionales
@@ -95,6 +100,7 @@ Gestión integral de pipeline comercial con seguimiento en tiempo real, análisi
 - **Por responsable** — Gráfico de barras horizontales (top 8)
 - **Por práctica/área** — Gráfico de barras horizontales (AM, CES, IA, SAP, etc.)
 - **Por industria** — Gráfico pie con 15 industrias
+- **Exportar a PDF** — Generación de reporte de 3 páginas con HTML+print: KPIs, funnel, gráficos y filtros activos. Se abre en nueva ventana para "Guardar como PDF" del navegador
 
 ### Administración (solo Admin)
 
@@ -103,7 +109,9 @@ Gestión integral de pipeline comercial con seguimiento en tiempo real, análisi
 - **Plantilla descargable** — Excel template con las columnas esperadas
 - **Soporte multi-formato** — `.xlsx`, `.xls` y `.csv`
 - **Conversión FX automática** — Durante la importación, calcula TCV EUR si se provee TCV + Currency
-- **Log de eventos** — Registro completo de actividad (creación, edición, cambio de estado, eliminación)
+- **Log de eventos** — Registro completo de actividad (creación, edición, cambio de estado, eliminación) con paginación de 50 en 50
+- **Backup de base de datos (JSON)** — Exportar/importar un JSON completo con todas las oportunidades, usuarios, log de eventos y configuración
+- **Barra de progreso** — Indicador visual durante la importación de backups con conteo de registros procesados
 
 ### Datos Comerciales y FX
 
@@ -175,6 +183,7 @@ Gestión integral de pipeline comercial con seguimiento en tiempo real, análisi
 | Base de datos | Cloud Firestore con persistencia offline |
 | Gráficos | Chart.js 4.x |
 | Excel | SheetJS (XLSX) para importación/exportación |
+| PDF | Generación via HTML + CSS print (sin dependencias de librerías) |
 | FX Rates | ExchangeRate API (cache 30 min) |
 | Estilos | Glassmorphism, CSS Custom Properties, Dark Mode |
 | Deploy | GitHub Pages |
