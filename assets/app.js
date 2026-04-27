@@ -2962,6 +2962,39 @@ function initApp() {
     document.querySelectorAll('.btn-nueva-oport').forEach(b => b.style.display = 'none');
   }
 
+  // ── MOBILE SIDEBAR ──
+  function toggleMobileSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    sidebar.classList.toggle('mobile-open');
+    overlay.classList.toggle('visible');
+    // Close sidebar when navigating on mobile
+    if (!sidebar.classList.contains('mobile-open')) return;
+    document.querySelectorAll('.nav-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        closeMobileSidebar();
+      }, { once: true });
+    });
+  }
+
+  function closeMobileSidebar() {
+    document.getElementById('sidebar').classList.remove('mobile-open');
+    document.getElementById('sidebarOverlay').classList.remove('visible');
+  }
+
+  // Auto-collapse sidebar on mobile and restore on resize
+  function handleResize() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    if (window.innerWidth <= 480) {
+      closeMobileSidebar();
+    } else {
+      sidebar.classList.remove('mobile-open');
+      overlay.classList.remove('visible');
+    }
+  }
+  window.addEventListener('resize', handleResize);
+
   // Sidebar toggle
   document.getElementById('toggleBtn').addEventListener('click', () =>
     document.getElementById('sidebar').classList.toggle('collapsed')

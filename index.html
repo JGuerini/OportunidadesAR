@@ -90,9 +90,14 @@
     </div>
   </aside>
 
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
+
   <!-- MAIN -->
   <main class="main">
     <div class="topbar">
+      <button class="mobile-menu-btn" id="mobileMenuBtn" onclick="toggleMobileSidebar()" title="Menú">
+        <svg fill="none" viewBox="0 0 18 18" stroke="currentColor" stroke-width="2"><path d="M3 5h12M3 9h12M3 13h12" stroke-linecap="round"/></svg>
+      </button>
       <div class="topbar-breadcrumb">Oportunidades / <span id="pageTitle">Inicio</span></div>
       <div class="topbar-right" style="overflow:visible">
         <div class="status-dot sincronizando" id="statusDot"></div>
