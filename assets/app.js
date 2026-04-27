@@ -44,13 +44,6 @@ const PALETTE = [
   '#c4b5fd','#fb923c','#34d399','#f472b6','#60a5fa'
 ];
 
-const INDUSTRIAS = [
-  'Agroindustria','Alimenticia','Automotriz','eCommerce','Energía',
-  'Industria/Tecnología','Medios','Oil&Gas','Retail','Salud',
-  'Sector Público','Seguros','Servicios Financieros','Telecomunicaciones',
-  'Transporte y Logística'
-];
-
 function colorForValue(str) {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -598,18 +591,6 @@ async function fetchFX(prefix) {
     _fxRates[prefix] = currency === 'EUR' ? 1 : null;
     document.getElementById(`${prefix}_tipoCambio`).value = currency === 'EUR' ? 1 : '';
     document.getElementById(`${prefix}_fxBadge`).style.display = 'none';
-    calcFX(prefix);
-    return;
-  }
-
-  // Verificar cache por moneda (usar getFXRate para reutilizar)
-  const cached = _fxCache[currency];
-  if (cached && (Date.now() - cached.ts < _FX_CACHE_TTL)) {
-    _fxRates[prefix] = cached.rate;
-    document.getElementById(`${prefix}_tipoCambio`).value = cached.rate.toFixed(6);
-    const badge = document.getElementById(`${prefix}_fxBadge`);
-    badge.style.display = 'inline-flex';
-    badge.textContent = `1 ${currency} = ${cached.rate.toFixed(4)} EUR`;
     calcFX(prefix);
     return;
   }

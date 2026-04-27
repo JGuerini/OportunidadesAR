@@ -330,7 +330,6 @@ body.dark-mode .btn-sm { color: var(--text); border-color: var(--border); }
 /* ── Estados de Oportunidad ── */
 .badge-desarrollo { background:rgba(254,249,195,0.75);backdrop-filter:blur(4px);color:#92400e; }
 .badge-entregada  { background:rgba(219,234,254,0.75);backdrop-filter:blur(4px);color:#1e40af; }
-.badge-finalizada { background:rgba(220,252,231,0.75);backdrop-filter:blur(4px);color:#166534; }
 .badge-pausa      { background:rgba(254,231,179,0.75);backdrop-filter:blur(4px);color:#9a3412; }
 .badge-perdido    { background:rgba(254,202,202,0.85);backdrop-filter:blur(4px);color:#991b1b;border:1px solid rgba(239,68,68,0.4); }
 .badge-ganado     { background:rgba(187,247,208,0.85);backdrop-filter:blur(4px);color:#065f46;border:1px solid rgba(22,163,74,0.4); }
@@ -345,7 +344,6 @@ body.dark-mode .btn-sm { color: var(--text); border-color: var(--border); }
 /* ── Dark Mode Badges ── */
 body.dark-mode .badge-desarrollo { background:rgba(113,63,18,0.5); color:#fde68a; }
 body.dark-mode .badge-entregada  { background:rgba(30,58,138,0.5); color:#93c5fd; }
-body.dark-mode .badge-finalizada { background:rgba(22,101,52,0.5); color:#86efac; }
 body.dark-mode .badge-pausa      { background:rgba(154,52,18,0.5); color:#fdba74; }
 body.dark-mode .badge-perdido    { background:rgba(153,27,27,0.55); color:#fecaca; border-color:rgba(239,68,68,0.4); }
 body.dark-mode .badge-ganado     { background:rgba(6,78,59,0.55); color:#bbf7d0; border-color:rgba(22,163,74,0.4); }

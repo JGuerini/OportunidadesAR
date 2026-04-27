@@ -216,7 +216,7 @@
           <h1 id="heroGreeting"></h1>
           <p class="subtitle">Aquí tenés un resumen de tu pipeline comercial.</p>
           <div class="hero-actions">
-            <button class="btn btn-accent btn-nueva-oport" onclick="navigate(document.querySelector('[data-page=nueva]'))">+ Nueva Oportunidad</button>
+            <button class="btn btn-accent" onclick="navigate(document.querySelector('[data-page=nueva]'))">+ Nueva Oportunidad</button>
             <button class="btn btn-primary" onclick="downloadExcelAction()">↓ Descargar Excel</button>
           </div>
         </div>
@@ -304,7 +304,7 @@
           <div><h1>Mis Oportunidades</h1><p class="subtitle" style="margin-bottom:0" id="misCount">Cargando...</p></div>
           <div style="display:flex;gap:10px">
             <button class="btn btn-ghost" onclick="misRefresh()">↺ Refrescar</button>
-            <button class="btn btn-primary btn-nueva-oport" onclick="navigate(document.querySelector('[data-page=nueva]'))">+ Nueva</button>
+            <button class="btn btn-primary" onclick="navigate(document.querySelector('[data-page=nueva]'))">+ Nueva</button>
           </div>
         </div>
         <div class="filters">
@@ -343,7 +343,7 @@
           <div><h1>Todas las Oportunidades</h1><p class="subtitle" style="margin-bottom:0" id="todasCount">Cargando...</p></div>
           <div style="display:flex;gap:10px">
             <button class="btn btn-ghost" onclick="downloadExcelAction()">↓ Exportar Excel</button>
-            <button class="btn btn-primary btn-nueva-oport" onclick="navigate(document.querySelector('[data-page=nueva]'))">+ Nueva</button>
+            <button class="btn btn-primary" onclick="navigate(document.querySelector('[data-page=nueva]'))">+ Nueva</button>
           </div>
         </div>
         <div class="filters">
@@ -402,7 +402,7 @@
           <div><h1>Kanban Board</h1><p class="subtitle" style="margin-bottom:0">Mové oportunidades arrastrando las cards entre columnas.</p></div>
           <div style="display:flex;gap:10px">
             <button class="btn btn-ghost" onclick="initKanban()">↺ Refrescar</button>
-            <button class="btn btn-primary btn-nueva-oport" onclick="navigate(document.querySelector('[data-page=nueva]'))">+ Nueva</button>
+            <button class="btn btn-primary" onclick="navigate(document.querySelector('[data-page=nueva]'))">+ Nueva</button>
           </div>
         </div>
         <div class="filters" id="kanbanFilters">
