@@ -1242,6 +1242,7 @@ body.dark-mode .toast-close:hover { color: #f0f0f0; }
     width: var(--sidebar-w); min-width: var(--sidebar-w);
     transform: translateX(-100%);
     z-index: 100;
+    overflow-y: auto;
     box-shadow: none;
     transition: transform var(--transition), width var(--transition), min-width var(--transition);
   }
