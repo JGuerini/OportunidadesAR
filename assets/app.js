@@ -1858,7 +1858,7 @@ async function exportStatsPDF() {
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 @page{size:A4;margin:0}
-*{margin:0;padding:0;box-sizing:border-box}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
 body{font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a2e;font-size:11px;line-height:1.5}
 .page{width:210mm;height:297mm;padding:18mm;page-break-after:always;position:relative}
 .page:last-child{page-break-after:avoid}
@@ -1871,9 +1871,8 @@ body{font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto
 .ftag{display:inline-flex;align-items:center;gap:3px;background:#f8f7fc;border:1px solid #e8e6f0;padding:2px 10px;border-radius:12px;font-size:9px}
 .ftag b{color:#8a38fe;font-weight:600}
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:5mm;margin-bottom:5mm}
-.kpi{background:#fff;border:1.5px solid #e8e6f0;border-radius:10px;padding:6mm 5mm;text-align:center;position:relative;overflow:hidden}
-.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#8a38fe,#a855f7)}
-.kv{font-size:26px;font-weight:800;color:#1a1a2e;line-height:1.1;margin-bottom:1.5mm}
+.kpi{background:#fff;border:1.5px solid #e8e6f0;border-radius:10px;padding:6mm 4mm 5mm;text-align:center;position:relative;overflow:hidden;border-top:3px solid #8a38fe}
+.kv{font-weight:800;color:#1a1a2e;line-height:1.1;margin-bottom:1.5mm;word-break:break-word}
 .kl{font-size:9px;font-weight:500;color:#6b6b80;text-transform:uppercase;letter-spacing:.5px}
 .fbox{background:#fff;border:1.5px solid #e8e6f0;border-radius:10px;padding:5mm}
 .fbox h3{font-size:11px;font-weight:600;text-align:center;margin-bottom:3mm}
@@ -1896,7 +1895,7 @@ body{font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto
 .pf{position:absolute;bottom:12mm;left:18mm;right:18mm;display:flex;justify-content:space-between;border-top:1px solid #e8e6f0;padding-top:2mm}
 .pf div{font-size:7.5px;color:#6b6b80}
 @media screen{body{background:#e8e6f0}.page{margin:10mm auto;box-shadow:0 2px 20px rgba(0,0,0,.12);border-radius:4px}.btn-bar{position:fixed;top:10px;right:15px;z-index:999;display:flex;gap:8px}.btn-bar button{padding:8px 18px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:600;border-radius:8px;cursor:pointer;border:1.5px solid #ccc;background:#fff}.btn-bar .pri{background:#8a38fe;color:#fff;border-color:#8a38fe}.btn-bar .pri:hover{background:#7c22ce}.btn-bar .sec:hover{border-color:#555}}
-@media print{.btn-bar{display:none!important}.page{box-shadow:none;margin:0;border-radius:0}}
+@media print{.btn-bar{display:none!important}.page{box-shadow:none;margin:0;border-radius:0}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}}
 </style>
 </head>
 <body>
@@ -1905,7 +1904,7 @@ body{font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto
 <div class="page">
   <div class="hdr"><div style="display:flex;align-items:baseline"><span class="logo">PRESALES AR</span><span class="sub">Reporte de Estadisticas</span></div><span class="badge">${escapeHtml(period)}</span></div>
   ${filters.length ? `<div class="frow"><span class="flbl">Filtros activos:</span>${filters.map(f => `<span class="ftag"><b>${escapeHtml(f.label)}:</b> ${escapeHtml(f.values.join(', '))}</span>`).join('')}</div>` : ''}
-  <div class="kpis">${kpis.map(k => `<div class="kpi"><div class="kv">${escapeHtml(k.value)}</div><div class="kl">${escapeHtml(k.label)}</div></div>`).join('')}</div>
+  <div class="kpis">${kpis.map(k => {const len=k.value.length;const fs=len>10?len>14?'16px':'19px':'26px';return `<div class="kpi"><div class="kv" style="font-size:${fs}">${escapeHtml(k.value)}</div><div class="kl">${escapeHtml(k.label)}</div></div>`;}).join('')}</div>
   <div class="fbox"><h3>Pipeline por Estado</h3><div class="fbars">${funnel.map(f => `<div class="fr"><div class="fl">${escapeHtml(f.label)}</div><div class="ft"><div class="ff" style="width:${f.pct}%;background:${f.color}"></div></div><div class="fc">${f.count}</div></div>`).join('')}</div></div>
   <div class="note">* Datos exportados el ${ds} con los filtros aplicados en ese momento.</div>
   <div class="pf"><div>PRESALES AR \u2014 Reporte de Estadisticas</div><div>1 / 3</div></div>
