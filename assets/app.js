@@ -1880,8 +1880,10 @@ async function handleUserModalSubmit(e) {
         perfil:     document.getElementById('um_perfil').value,
         activo:     document.getElementById('um_activo').value === 'SI'
       });
-      if (result.ok) { TOAST.success('Usuario creado correctamente.'); closeUserModal(); loadUsuarios(); }
-      else showModalAlert(result.error || 'Error al crear el usuario.');
+      if (result.ok) {
+        CRM.logEvento('creacion_usuario', `Creó el usuario: ${document.getElementById('um_nombre').value} (${document.getElementById('um_email').value})`);
+        TOAST.success('Usuario creado correctamente.'); closeUserModal(); loadUsuarios();
+      } else showModalAlert(result.error || 'Error al crear el usuario.');
     } else {
       const uid = document.getElementById('um_usuarioOriginal').value;
       const data = {
@@ -1896,8 +1898,10 @@ async function handleUserModalSubmit(e) {
         data.contrasena = newPass;
       }
       const ok = await AUTH.updateUser(uid, data);
-      if (ok) { TOAST.success('Usuario actualizado correctamente.'); closeUserModal(); loadUsuarios(); }
-      else showModalAlert('Error al guardar.');
+      if (ok) {
+        CRM.logEvento('edicion_usuario', `Editó el usuario: ${data.nombre} (${data.email})`);
+        TOAST.success('Usuario actualizado correctamente.'); closeUserModal(); loadUsuarios();
+      } else showModalAlert('Error al guardar.');
     }
   } catch(err) {
     showModalAlert('Error de conexión.');
