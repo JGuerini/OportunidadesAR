@@ -866,9 +866,11 @@ async function refreshCurrentPage() {
 // ══════════════════════════════════════════════
 // TODAS LAS OPORTUNIDADES
 // ══════════════════════════════════════════════
-let _tablaRows = [], _sortKey = 'fechaCreacion', _sortDir = -1, _tablaPage = 1;
+let _tablaRows = [];
+const _tablaSt = { page: 1, sortKey: 'fechaCreacion', sortDir: -1 };
 let _bulkTodas = new Set();
-let _misRows = [], _misSortKey = 'fechaCreacion', _misSortDir = -1, _misPage = 1;
+let _misRows = [];
+const _misSt = { page: 1, sortKey: 'fechaCreacion', sortDir: -1 };
 let _bulkMis = new Set();
 
 function isAdmin() { const s = AUTH.getSession(); return s && s.perfil === 'admin'; }
@@ -979,7 +981,7 @@ async function initTabla(silent = false) {
   selI.innerHTML = '<option value="">Todas las industrias</option>';
   industrias.forEach(i => selI.innerHTML += `<option>${escapeHtml(i)}</option>`);
 
-  _tablaPage = 1;
+  _tablaSt.page = 1;
   renderTabla();
 }
 
@@ -1037,75 +1039,120 @@ document.addEventListener('click', (e) => {
   }
 });
 
-function sortTabla(key) {
-  if (_sortKey === key) _sortDir *= -1;
-  else { _sortKey = key; _sortDir = 1; }
-  _tablaPage = 1;
-  renderTabla();
+// ══════════════════════════════════════════════
+// TABLE VIEW FACTORY (Ver Todas + Mis Oportunidades)
+// ══════════════════════════════════════════════
+function createTableView({ state, rows, filters, searchFields, ids, bulk, extraCol }) {
+  function sort(key) {
+    if (state.sortKey === key) state.sortDir *= -1;
+    else { state.sortKey = key; state.sortDir = 1; }
+    state.page = 1;
+    render();
+  }
+
+  function render(page) {
+    if (page !== undefined) state.page = page;
+    const f = filters();
+    const data = rows().filter(r => {
+      if (f.estado && r.estado !== f.estado) return false;
+      if (f.cliente && r.cliente !== f.cliente) return false;
+      if (f.practica && r.practica !== f.practica) return false;
+      if (f.responsable && r.responsable !== f.responsable) return false;
+      if (f.industria && r.industria !== f.industria) return false;
+      if (f.fechaDesde) {
+        const from = new Date(f.fechaDesde + 'T00:00:00');
+        if (!isNaN(from.getTime()) && new Date(r.fechaInicio) < from) return false;
+      }
+      if (f.fechaHasta) {
+        const to = new Date(f.fechaHasta + 'T23:59:59');
+        if (!isNaN(to.getTime()) && new Date(r.fechaInicio) > to) return false;
+      }
+      if (f.q) {
+        const h = searchFields.map(k => r[k]).join(' ').toLowerCase();
+        if (!h.includes(f.q)) return false;
+      }
+      return true;
+    }).sort((a, b) => {
+      let av = a[state.sortKey] || '', bv = b[state.sortKey] || '';
+      if (!isNaN(parseFloat(av)) && !isNaN(parseFloat(bv)))
+        return (parseFloat(av) - parseFloat(bv)) * state.sortDir;
+      return String(av).localeCompare(String(bv)) * state.sortDir;
+    });
+
+    document.getElementById(ids.count).textContent =
+      `${data.length} oportunidad${data.length !== 1 ? 'es' : ''}`;
+    const body = document.getElementById(ids.body);
+    const empty = document.getElementById(ids.empty);
+    if (data.length === 0) {
+      body.innerHTML = '';
+      empty.style.display = 'block';
+      document.getElementById(ids.pagination).style.display = 'none';
+      return;
+    }
+    empty.style.display = 'none';
+
+    const pg = paginate(data, state.page);
+    const admin = isAdmin();
+    body.innerHTML = pg.rows.map(r => {
+      const checked = bulk.set.has(r.id);
+      const notasTip = r.notas ? escapeHtml(r.notas) : '';
+      const fechaEntregaTip = r.fechaEntrega ? fmtFecha(r.fechaEntrega) : '';
+      const ec = extraCol ? extraCol(r) : '';
+      return `
+      <tr class="row-clickable ${checked ? 'row-selected' : ''}" data-id="${r.id}" onclick="verOportunidad('${r.id}')">
+        ${admin ? `<td class="row-cb" onclick="event.stopPropagation()"><span class="bulk-cb ${checked ? 'checked' : ''}" onclick="event.stopPropagation();${bulk.toggleName}('${r.id}')"></span></td>` : ''}
+        <td class="col-id">${escapeHtml(friendlyId(r))}</td>
+        <td style="font-weight:600">${escapeHtml(r.cliente) || '—'}</td>
+        <td style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" ${notasTip ? 'data-tip="' + notasTip + '"' : ''}>${escapeHtml(r.nombre) || '—'}</td>
+        ${ec}
+        <td ${fechaEntregaTip ? 'data-tip="Entrega: ' + escapeHtml(fechaEntregaTip) + '"' : ''}><span class="badge ${badgeEstado(r.estado)}">${escapeHtml(r.estado) || '—'}</span></td>
+      </tr>`;
+    }).join('');
+    bulk.updateUI();
+    renderPagination(ids.pagination, pg, render);
+  }
+
+  return { sort, render };
 }
 
-function renderTabla(page) {
-  if (page !== undefined) _tablaPage = page;
-  const q    = document.getElementById('t_search').value.trim().toLowerCase();
-  const est  = document.getElementById('t_estado').value;
-  const prac = document.getElementById('t_practica').value;
-  const resp = document.getElementById('t_responsable').value;
-  const cli  = document.getElementById('t_cliente').value;
-  const ind  = document.getElementById('t_industria').value;
-  const fDesde = document.getElementById('t_fechaDesde').value;
-  const fHasta = document.getElementById('t_fechaHasta').value;
+// ── Instancia: Ver Todas ──
+const tablaView = createTableView({
+  state: _tablaSt,
+  rows: () => _tablaRows,
+  filters: () => ({
+    q: document.getElementById('t_search').value.trim().toLowerCase(),
+    estado: document.getElementById('t_estado').value,
+    practica: document.getElementById('t_practica').value,
+    responsable: document.getElementById('t_responsable').value,
+    cliente: document.getElementById('t_cliente').value,
+    industria: document.getElementById('t_industria').value,
+    fechaDesde: document.getElementById('t_fechaDesde').value,
+    fechaHasta: document.getElementById('t_fechaHasta').value,
+  }),
+  searchFields: ['codigo', 'cliente', 'nombre', 'responsable'],
+  ids: { count: 'todasCount', body: 'todasBody', empty: 'todasEmpty', pagination: 'todasPagination' },
+  bulk: { set: _bulkTodas, toggleName: 'toggleBulkRowTodas', updateUI: updateBulkTodasUI },
+  extraCol: r => `<td style="color:var(--text-muted)">${escapeHtml(r.responsable) || '—'}</td>`
+});
 
-  const rows = _tablaRows.filter(r => {
-    if (cli  && r.cliente    !== cli)  return false;
-    if (est  && r.estado     !== est)  return false;
-    if (prac && r.practica   !== prac) return false;
-    if (resp && r.responsable !== resp) return false;
-    if (ind  && r.industria  !== ind)  return false;
-    if (fDesde) {
-      const from = new Date(fDesde + 'T00:00:00');
-      if (!isNaN(from.getTime()) && new Date(r.fechaInicio) < from) return false;
-    }
-    if (fHasta) {
-      const to = new Date(fHasta + 'T23:59:59');
-      if (!isNaN(to.getTime()) && new Date(r.fechaInicio) > to) return false;
-    }
-    if (q) {
-      const h = [r.codigo, r.cliente, r.nombre, r.responsable].join(' ').toLowerCase();
-      if (!h.includes(q)) return false;
-    }
-    return true;
-  }).sort((a, b) => {
-    let av = a[_sortKey] || '', bv = b[_sortKey] || '';
-    if (!isNaN(parseFloat(av)) && !isNaN(parseFloat(bv))) return (parseFloat(av) - parseFloat(bv)) * _sortDir;
-    return String(av).localeCompare(String(bv)) * _sortDir;
-  });
+// ── Instancia: Mis Oportunidades ──
+const misView = createTableView({
+  state: _misSt,
+  rows: () => _misRows,
+  filters: () => ({
+    q: document.getElementById('mis_search').value.trim().toLowerCase(),
+    estado: document.getElementById('mis_estado').value,
+  }),
+  searchFields: ['codigo', 'cliente', 'nombre'],
+  ids: { count: 'misCount', body: 'misBody', empty: 'misEmpty', pagination: 'misPagination' },
+  bulk: { set: _bulkMis, toggleName: 'toggleBulkRowMis', updateUI: updateBulkMisUI }
+});
 
-  document.getElementById('todasCount').textContent = `${rows.length} oportunidad${rows.length !== 1 ? 'es' : ''}`;
-  const body  = document.getElementById('todasBody');
-  const empty = document.getElementById('todasEmpty');
-  if (rows.length === 0) { body.innerHTML = ''; empty.style.display = 'block'; document.getElementById('todasPagination').style.display = 'none'; return; }
-  empty.style.display = 'none';
-
-  const pg = paginate(rows, _tablaPage);
-  const admin = isAdmin();
-  body.innerHTML = pg.rows.map(r => {
-    const checked = _bulkTodas.has(r.id);
-    const notasTip = r.notas ? escapeHtml(r.notas) : '';
-    const fechaEntregaTip = r.fechaEntrega ? fmtFecha(r.fechaEntrega) : '';
-    return `
-    <tr class="row-clickable ${checked ? 'row-selected' : ''}" data-id="${r.id}" onclick="verOportunidad('${r.id}')">
-      ${admin ? `<td class="row-cb" onclick="event.stopPropagation()"><span class="bulk-cb ${checked ? 'checked' : ''}" onclick="event.stopPropagation();toggleBulkRowTodas('${r.id}')"></span></td>` : ''}
-      <td class="col-id">${escapeHtml(friendlyId(r))}</td>
-      <td style="font-weight:600">${escapeHtml(r.cliente) || '—'}</td>
-      <td style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" ${notasTip ? 'data-tip="' + notasTip + '"' : ''}>${escapeHtml(r.nombre) || '—'}</td>
-      <td style="color:var(--text-muted)">${escapeHtml(r.responsable) || '—'}</td>
-      <td ${fechaEntregaTip ? 'data-tip="Entrega: ' + escapeHtml(fechaEntregaTip) + '"' : ''}><span class="badge ${badgeEstado(r.estado)}">${escapeHtml(r.estado) || '—'}</span></td>
-    </tr>`;
-  }).join('');
-  updateBulkTodasUI();
-
-  renderPagination('todasPagination', pg, (p) => renderTabla(p));
-}
+// ── Wrappers para HTML onclick ──
+function sortTabla(key)  { tablaView.sort(key); }
+function renderTabla(p)  { tablaView.render(p); }
+function sortMis(key)    { misView.sort(key); }
+function renderMis(p)    { misView.render(p); }
 
 async function verOportunidad(id) {
   let r = findRowById(id);
@@ -2602,59 +2649,13 @@ async function initMis(silent = false) {
   document.getElementById('misCheckHead').style.display = isAdmin() ? '' : 'none';
   _bulkMis.clear();
 
-  _misPage = 1;
+  _misSt.page = 1;
   renderMis();
 }
 
 async function misRefresh() {
   CRM.invalidateCache();
   await initMis();
-}
-
-function sortMis(key) {
-  if (_misSortKey === key) _misSortDir *= -1;
-  else { _misSortKey = key; _misSortDir = 1; }
-  _misPage = 1;
-  renderMis();
-}
-
-function renderMis(page) {
-  if (page !== undefined) _misPage = page;
-  const q   = document.getElementById('mis_search').value.trim().toLowerCase();
-  const est = document.getElementById('mis_estado').value;
-  const rows = _misRows.filter(r => {
-    if (est && r.estado !== est) return false;
-    if (q) { const h = [r.codigo, r.cliente, r.nombre].join(' ').toLowerCase(); if (!h.includes(q)) return false; }
-    return true;
-  }).sort((a, b) => {
-    let av = a[_misSortKey] || '', bv = b[_misSortKey] || '';
-    if (!isNaN(parseFloat(av)) && !isNaN(parseFloat(bv))) return (parseFloat(av) - parseFloat(bv)) * _misSortDir;
-    return String(av).localeCompare(String(bv)) * _misSortDir;
-  });
-
-  document.getElementById('misCount').textContent = `${rows.length} oportunidad${rows.length !== 1 ? 'es' : ''}`;
-  const body = document.getElementById('misBody'), empty = document.getElementById('misEmpty');
-  if (rows.length === 0) { body.innerHTML = ''; empty.style.display = 'block'; document.getElementById('misPagination').style.display = 'none'; return; }
-  empty.style.display = 'none';
-
-  const pg = paginate(rows, _misPage);
-  const admin = isAdmin();
-  body.innerHTML = pg.rows.map(r => {
-    const checked = _bulkMis.has(r.id);
-    const notasTip = r.notas ? escapeHtml(r.notas) : '';
-    const fechaEntregaTip = r.fechaEntrega ? fmtFecha(r.fechaEntrega) : '';
-    return `
-    <tr class="row-clickable ${checked ? 'row-selected' : ''}" data-id="${r.id}" onclick="verOportunidad('${r.id}')">
-      ${admin ? `<td class="row-cb" onclick="event.stopPropagation()"><span class="bulk-cb ${checked ? 'checked' : ''}" onclick="event.stopPropagation();toggleBulkRowMis('${r.id}')"></span></td>` : ''}
-      <td class="col-id">${escapeHtml(friendlyId(r))}</td>
-      <td style="font-weight:600">${escapeHtml(r.cliente) || '—'}</td>
-      <td style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" ${notasTip ? 'data-tip="' + notasTip + '"' : ''}>${escapeHtml(r.nombre) || '—'}</td>
-      <td ${fechaEntregaTip ? 'data-tip="Entrega: ' + escapeHtml(fechaEntregaTip) + '"' : ''}><span class="badge ${badgeEstado(r.estado)}">${escapeHtml(r.estado) || '—'}</span></td>
-    </tr>`;
-  }).join('');
-  updateBulkMisUI();
-
-  renderPagination('misPagination', pg, (p) => renderMis(p));
 }
 
 // ══════════════════════════════════════════════
