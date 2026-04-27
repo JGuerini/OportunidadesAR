@@ -638,33 +638,39 @@ function calcFX(prefix) {
 // ══════════════════════════════════════════════
 // NUEVA OPORTUNIDAD
 // ══════════════════════════════════════════════
+function collectFormData(prefix) {
+  const v = id => document.getElementById(prefix + '_' + id).value;
+  return {
+    cliente:      v('cliente'),
+    industria:    v('industria'),
+    practica:     v('practica'),
+    nombre:       v('nombre'),
+    descripcion:  v('descripcion'),
+    origen:       v('origen'),
+    fertilizacion: document.getElementById(prefix + '_fertilizacion').checked,
+    responsable:  v('responsable'),
+    estado:       v('estado'),
+    fechaInicio:  v('fechaInicio'),
+    fechaEntrega: v('fechaEntrega'),
+    notas:        v('notas'),
+    sharepoint:   v('sharepoint'),
+    tcv:          parseLocalizedNumber(v('tcv')) || 0,
+    currency:     v('currency'),
+    tcvEur:       v('tcvEur') || '0',
+    tipoCambio:   v('tipoCambio') || '',
+    probabilidad: parseLocalizedNumber(v('probabilidad')) || 0,
+    pm:           parseLocalizedNumber(v('pm')) || 0
+  };
+}
+
 async function handleNueva(e) {
   e.preventDefault();
   const btn = document.getElementById('n_submitBtn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner-inline"></span>Guardando...';
   try {
-    const id = await CRM.addOportunidad({
-      cliente:      document.getElementById('n_cliente').value,
-      industria:    document.getElementById('n_industria').value,
-      practica:     document.getElementById('n_practica').value,
-      nombre:       document.getElementById('n_nombre').value,
-      descripcion:  document.getElementById('n_descripcion').value,
-      origen:       document.getElementById('n_origen').value,
-      fertilizacion: document.getElementById('n_fertilizacion').checked,
-      responsable:  document.getElementById('n_responsable').value,
-      estado:       document.getElementById('n_estado').value,
-      fechaInicio:  document.getElementById('n_fechaInicio').value,
-      fechaEntrega: document.getElementById('n_fechaEntrega').value,
-      notas:        document.getElementById('n_notas').value,
-      sharepoint:   document.getElementById('n_sharepoint').value,
-      tcv:          parseLocalizedNumber(document.getElementById('n_tcv').value) || 0,
-      currency:     document.getElementById('n_currency').value,
-      tcvEur:       document.getElementById('n_tcvEur').value || '0',
-      tipoCambio:   document.getElementById('n_tipoCambio').value || '',
-      probabilidad: parseLocalizedNumber(document.getElementById('n_probabilidad').value) || 0,
-      pm:           parseLocalizedNumber(document.getElementById('n_pm').value) || 0
-    });
+    const data = collectFormData('n');
+    const id = await CRM.addOportunidad(data);
     CRM.logEvento('creacion', 'Creó la oportunidad', id, '', document.getElementById('n_nombre').value);
     // Notify assignment
     CRM.getOportunidad(id).then(opp => {
@@ -787,27 +793,7 @@ async function handleUpdate(e) {
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner-inline"></span>Guardando...';
   try {
-    await CRM.updateOportunidad(id, {
-      cliente:      document.getElementById('e_cliente').value,
-      industria:    document.getElementById('e_industria').value,
-      practica:     document.getElementById('e_practica').value,
-      nombre:       document.getElementById('e_nombre').value,
-      descripcion:  document.getElementById('e_descripcion').value,
-      origen:       document.getElementById('e_origen').value,
-      fertilizacion: document.getElementById('e_fertilizacion').checked,
-      responsable:  document.getElementById('e_responsable').value,
-      estado:       document.getElementById('e_estado').value,
-      fechaInicio:  document.getElementById('e_fechaInicio').value,
-      fechaEntrega: document.getElementById('e_fechaEntrega').value,
-      notas:        document.getElementById('e_notas').value,
-      sharepoint:   document.getElementById('e_sharepoint').value,
-      tcv:          parseLocalizedNumber(document.getElementById('e_tcv').value) || 0,
-      currency:     document.getElementById('e_currency').value,
-      tcvEur:       document.getElementById('e_tcvEur').value || '0',
-      tipoCambio:   document.getElementById('e_tipoCambio').value || '',
-      probabilidad: parseLocalizedNumber(document.getElementById('e_probabilidad').value) || 0,
-      pm:           parseLocalizedNumber(document.getElementById('e_pm').value) || 0
-    });
+    await CRM.updateOportunidad(id, collectFormData('e'));
 
     // Log del evento
     if (oldEstado && newEstado && oldEstado !== newEstado) {
