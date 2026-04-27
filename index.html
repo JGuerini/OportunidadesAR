@@ -105,7 +105,7 @@
             <div id="userPerfil" style="font-size:10px;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:0.05em"></div>
           </div>
           <div style="position:relative;display:flex;align-items:center;overflow:visible">
-            <button id="notifBellBtn" onclick="NOTIF.toggle()" title="Notificaciones" style="background:none;border:none;cursor:pointer;color:var(--text-muted);padding:2px;border-radius:4px;display:flex;align-items:center;flex-shrink:0;transition:color 0.2s;overflow:visible" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-muted)'">
+            <button id="notifBellBtn" class="icon-btn icon-btn-sm" style="overflow:visible" onclick="NOTIF.toggle()" title="Notificaciones">
               <svg width="15" height="15" viewBox="0 -2 18 21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 4a4.5 4.5 0 0 0-9 0c0 4.5-2.5 6.5-2.5 6.5h14s-2.5-2-2.5-6.5"/><path d="M6.5 14a2.5 2.5 0 0 0 5 0"/></svg>
               <span id="notifBadge" style="position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 4px"></span>
             </button>
@@ -118,10 +118,10 @@
               <div id="notifEmpty" class="notif-empty">No hay notificaciones</div>
             </div>
           </div>
-          <button id="themeToggle" onclick="handleThemeToggle()" title="Cambiar tema" style="background:none;border:none;cursor:pointer;color:var(--text-muted);padding:4px;border-radius:4px;display:flex;align-items:center;transition:color 0.2s" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-muted)'">
+          <button id="themeToggle" class="icon-btn" onclick="handleThemeToggle()" title="Cambiar tema">
             <span id="themeIcon" style="display:flex"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 18 18"><circle cx="9" cy="9" r="3.5"/><path d="M9 1v2M9 15v2M1 9h2M15 9h2M3.3 3.3l1.4 1.4M13.3 13.3l1.4 1.4M3.3 14.7l1.4-1.4M13.3 4.7l1.4-1.4" stroke-linecap="round"/></svg></span>
           </button>
-          <button onclick="AUTH.logout()" title="Cerrar sesión" style="background:none;border:none;cursor:pointer;color:var(--text-muted);padding:4px;border-radius:4px;display:flex;align-items:center;transition:color 0.2s" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='var(--text-muted)'">
+          <button class="icon-btn danger" onclick="AUTH.logout()" title="Cerrar sesión">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 18 18"><path d="M7 3H3v12h4M12 12l3-3-3-3M15 9H7" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
         </div>
@@ -223,14 +223,14 @@
         <div class="quick-stats" id="homeStats"></div>
         <div class="two-col">
           <div class="card" style="margin-bottom:16px">
-            <div style="font-size:13px;font-weight:700;margin-bottom:4px">Pipeline por Estado</div>
-            <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px">Distribución actual</div>
+            <div class="card-title">Pipeline por Estado</div>
+            <div class="card-subtitle">Distribución actual</div>
             <div class="pipeline-bar" id="pipelineBar"></div>
             <div class="etapa-legend" id="etapaLegend"></div>
           </div>
           <div class="card" style="margin-bottom:16px">
-            <div style="font-size:13px;font-weight:700;margin-bottom:4px">Oportunidades Próximas a Entregar</div>
-            <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px">Próximas 5 entregas futuras</div>
+            <div class="card-title">Oportunidades Próximas a Entregar</div>
+            <div class="card-subtitle">Próximas 5 entregas futuras</div>
             <div id="recientesContent"></div>
           </div>
         </div>
@@ -254,8 +254,8 @@
               <div class="form-group" style="margin-bottom:18px"><label>Descripción</label><textarea id="n_descripcion"></textarea></div>
               <div style="display:flex;gap:24px;align-items:center">
                 <div class="form-group" style="flex:1"><label>Origen *</label><select id="n_origen" required><option value="">— Seleccionar —</option><option>Otro</option><option>Proyecto</option><option>Renovación</option><option>RFP</option></select></div>
-                <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
-                  <label style="font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted)">Fertilización</label>
+                <div class="fert-switch">
+                  <label class="fert-label">Fertilización</label>
                   <label class="switch"><input type="checkbox" id="n_fertilizacion"/><span class="slider"></span></label>
                 </div>
               </div>
@@ -302,7 +302,7 @@
       <div class="page-section" id="page-mis">
         <div class="page-actions">
           <div><h1>Mis Oportunidades</h1><p class="subtitle" style="margin-bottom:0" id="misCount">Cargando...</p></div>
-          <div style="display:flex;gap:10px">
+          <div class="btn-group">
             <button class="btn btn-ghost" onclick="misRefresh()">↺ Refrescar</button>
             <button class="btn btn-primary" onclick="navigate(document.querySelector('[data-page=nueva]'))">+ Nueva</button>
           </div>
@@ -341,7 +341,7 @@
       <div class="page-section" id="page-todas">
         <div class="page-actions">
           <div><h1>Todas las Oportunidades</h1><p class="subtitle" style="margin-bottom:0" id="todasCount">Cargando...</p></div>
-          <div style="display:flex;gap:10px">
+          <div class="btn-group">
             <button class="btn btn-ghost" onclick="downloadExcelAction()">↓ Exportar Excel</button>
             <button class="btn btn-primary" onclick="navigate(document.querySelector('[data-page=nueva]'))">+ Nueva</button>
           </div>
@@ -400,7 +400,7 @@
       <div class="page-section" id="page-kanban">
         <div class="page-actions">
           <div><h1>Kanban Board</h1><p class="subtitle" style="margin-bottom:0">Mové oportunidades arrastrando las cards entre columnas.</p></div>
-          <div style="display:flex;gap:10px">
+          <div class="btn-group">
             <button class="btn btn-ghost" onclick="initKanban()">↺ Refrescar</button>
             <button class="btn btn-primary" onclick="navigate(document.querySelector('[data-page=nueva]'))">+ Nueva</button>
           </div>
@@ -448,7 +448,7 @@
       <div class="page-section" id="page-estadisticas">
         <div class="page-actions">
           <div><h1>Estadísticas</h1><p class="subtitle" style="margin-bottom:0">Métricas y análisis de tu pipeline comercial.</p></div>
-          <div style="display:flex;gap:10px"><button class="btn btn-ghost" onclick="exportStatsPDF()">↓ Exportar PDF</button></div>
+          <div class="btn-group"><button class="btn btn-ghost" onclick="exportStatsPDF()">↓ Exportar PDF</button></div>
         </div>
         <div class="period-nav" id="statsPeriodNav">
           <button class="btn btn-ghost" onclick="statsNavPrev()">&#8592;</button>
@@ -495,7 +495,7 @@
         <h1>Mi Perfil</h1>
         <p class="subtitle">Información de tu cuenta y cambio de contraseña.</p>
         <div id="perfilAlert" class="alert"></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:800px">
+        <div class="two-col-grid">
           <div class="card">
             <div class="section-title">Información de Cuenta</div>
             <div id="perfilInfo"></div>
@@ -542,23 +542,17 @@
         <div class="card" style="margin-bottom:24px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
             <div>
-              <div style="font-size:16px;font-weight:700">Carga Masiva</div>
+              <div class="section-header">Carga Masiva</div>
               <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Importá oportunidades desde un archivo Excel (.xlsx)</div>
             </div>
             <button class="btn btn-primary" onclick="openImportModal()">↑ Importar Excel</button>
           </div>
           <div style="display:flex;gap:12px;flex-wrap:wrap">
-            <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);background:var(--bg);padding:6px 12px;border-radius:var(--radius-sm)">
-              <span style="font-weight:700">1.</span> Descargá la plantilla
-            </div>
-            <div style="color:var(--border);display:flex;align-items:center">→</div>
-            <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);background:var(--bg);padding:6px 12px;border-radius:var(--radius-sm)">
-              <span style="font-weight:700">2.</span> Completá los datos
-            </div>
-            <div style="color:var(--border);display:flex;align-items:center">→</div>
-            <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);background:var(--bg);padding:6px 12px;border-radius:var(--radius-sm)">
-              <span style="font-weight:700">3.</span> Importá el archivo
-            </div>
+            <div class="step-badge"><span style="font-weight:700">1.</span> Descargá la plantilla</div>
+            <div class="step-arrow">→</div>
+            <div class="step-badge"><span style="font-weight:700">2.</span> Completá los datos</div>
+            <div class="step-arrow">→</div>
+            <div class="step-badge"><span style="font-weight:700">3.</span> Importá el archivo</div>
           </div>
         </div>
 
@@ -566,7 +560,7 @@
         <div class="card" style="margin-bottom:24px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
             <div>
-              <div style="font-size:16px;font-weight:700">Backup de Base de Datos</div>
+              <div class="section-header">Backup de Base de Datos</div>
               <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Exportá o importá un JSON completo (oportunidades, usuarios, log y configuración)</div>
             </div>
             <button class="btn btn-primary" onclick="exportJSONBackupAction()">↓ Exportar JSON</button>
@@ -585,8 +579,8 @@
                 <span id="importJSONProgressText">Procesando...</span>
                 <span id="importJSONProgressCount">0/0</span>
               </div>
-              <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
-                <div id="importJSONProgressBar" style="height:100%;background:var(--accent);border-radius:3px;transition:width 0.3s;width:0%"></div>
+              <div class="progress-bar">
+                <div id="importJSONProgressBar" class="progress-bar-fill" style="width:0%"></div>
               </div>
             </div>
             <div id="importJSONResult" style="display:none;margin-top:12px;padding:12px 16px;border-radius:var(--radius-sm);font-size:13px"></div>
@@ -600,7 +594,7 @@
         <div class="card" style="padding:0">
           <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--border)">
             <div>
-              <div style="font-size:16px;font-weight:700">Gestión de Usuarios</div>
+              <div class="section-header">Gestión de Usuarios</div>
               <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Administrá los usuarios de la plataforma.</div>
             </div>
             <button class="btn btn-primary" onclick="openUserModal('new')">+ Nuevo Usuario</button>
@@ -631,7 +625,7 @@
         <div id="verModalId" style="font-size:11px;color:var(--text-muted);font-weight:600;letter-spacing:0.05em;text-transform:uppercase"></div>
         <div id="verModalTitle" style="font-size:18px;font-weight:700;margin-top:2px"></div>
       </div>
-      <button onclick="closeVerModal()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;padding:4px;line-height:1">✕</button>
+      <button class="modal-close" onclick="closeVerModal()">✕</button>
     </div>
     <div id="verModalContent"></div>
     <div class="ver-modal-actions">
@@ -650,7 +644,7 @@
         <div style="font-size:11px;color:var(--text-muted);font-weight:600;letter-spacing:0.05em;text-transform:uppercase">Editar Oportunidad</div>
         <div style="font-size:18px;font-weight:700;margin-top:2px" id="editModalTitle">—</div>
       </div>
-      <button onclick="closeEditModal()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;padding:4px;line-height:1">✕</button>
+      <button class="modal-close" onclick="closeEditModal()">✕</button>
     </div>
     <div class="edit-modal-scroll">
       <form id="editForm" onsubmit="handleUpdate(event)">
@@ -666,8 +660,8 @@
           <div class="form-group" style="margin-bottom:18px"><label>Descripción</label><textarea id="e_descripcion"></textarea></div>
           <div style="display:flex;gap:24px;align-items:center">
             <div class="form-group" style="flex:1"><label>Origen *</label><select id="e_origen" required><option value="">— Seleccionar —</option><option>Otro</option><option>Proyecto</option><option>Renovación</option><option>RFP</option></select></div>
-            <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
-              <label style="font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted)">Fertilización</label>
+            <div class="fert-switch">
+              <label class="fert-label">Fertilización</label>
               <label class="switch"><input type="checkbox" id="e_fertilizacion"/><span class="slider"></span></label>
             </div>
           </div>
@@ -747,7 +741,7 @@
         <div class="modal-title" style="margin:0">Importar Oportunidades</div>
         <div class="modal-sub" style="margin:4px 0 0">Cargá un archivo Excel (.xlsx) con las oportunidades.</div>
       </div>
-      <button onclick="closeImportModal()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;padding:4px;line-height:1">✕</button>
+      <button class="modal-close" onclick="closeImportModal()">✕</button>
     </div>
 
     <!-- Paso 1: Seleccionar archivo -->
@@ -792,8 +786,8 @@
           <span id="importProgressText">Procesando...</span>
           <span id="importProgressCount">0/0</span>
         </div>
-        <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
-          <div id="importProgressBar" style="height:100%;background:var(--accent);border-radius:3px;transition:width 0.3s;width:0%"></div>
+        <div class="progress-bar">
+          <div id="importProgressBar" class="progress-bar-fill" style="width:0%"></div>
         </div>
       </div>
 
