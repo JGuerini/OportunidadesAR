@@ -1817,21 +1817,13 @@ async function renderStats(silent = false) {
 // ══════════════════════════════════════════════
 async function exportStatsPDF() {
   if (Object.keys(_statsCharts).length === 0) { TOAST.warning('No hay datos para exportar.'); return; }
-  if (!window.jspdf) { TOAST.error('Libreria jsPDF no disponible.'); return; }
 
-  TOAST.info('Generando PDF...');
-  await new Promise(r => setTimeout(r, 50));
+  TOAST.info('Generando reporte...');
 
   try {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
-
-    // ── Constantes ──
-    const W = 210, H = 297, MG = 18, CW = W - MG * 2;
-    const COL = { purple: [138,56,254], dark: [26,26,46], muted: [107,107,128], border: [232,230,240], lightBg: [248,247,252] };
-
     // ── Extraer datos del DOM ──
     const period = getStatsPeriodLabel() || '—';
+    const ds = new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
 
     const kpis = [...document.querySelectorAll('#statsKpis .kpi')].map(el => ({
       value: el.querySelector('.kpi-val')?.textContent?.trim() || '',
@@ -1845,204 +1837,111 @@ async function exportStatsPDF() {
       if (!container || !allowed) return;
       const total = container.querySelectorAll('.ms-option').length;
       if (allowed.size > 0 && allowed.size < total)
-        filters.push(STATS_FILTER_LABELS[f] + ': ' + [...allowed].join(', '));
+        filters.push({ label: STATS_FILTER_LABELS[f] || f, values: [...allowed] });
     });
 
-    const cimg = key => _statsCharts[key]?.toBase64Image('image/png', 1) || null;
+    const funnel = [...document.querySelectorAll('#funnelChart .funnel-row')].map(r => ({
+      label: r.querySelector('.funnel-label')?.textContent?.trim() || '',
+      pct: parseFloat(r.querySelector('.funnel-fill')?.style.width || '0'),
+      count: r.querySelector('.funnel-count')?.textContent?.trim() || '0',
+      color: r.querySelector('.funnel-fill')?.style.backgroundColor || '#94a3b8'
+    }));
 
-    const funnel = [...document.querySelectorAll('#funnelChart .funnel-row')].map(r => {
-      const fill = r.querySelector('.funnel-fill');
-      const bg = fill?.style.backgroundColor || fill?.style.background || '';
-      const m = bg.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-      const h = bg.match(/^#([0-9a-f]{6})$/i);
-      let color = COL.muted;
-      if (m) color = [+m[1], +m[2], +m[3]];
-      else if (h) color = [parseInt(h[1].slice(0,2),16), parseInt(h[1].slice(2,4),16), parseInt(h[1].slice(4,6),16)];
-      return {
-        label: r.querySelector('.funnel-label')?.textContent?.trim() || '',
-        pct: parseFloat(fill?.style.width || '0'),
-        count: r.querySelector('.funnel-count')?.textContent?.trim() || '0',
-        color
-      };
-    });
+    const ci = key => _statsCharts[key]?.toBase64Image('image/png', 1) || '';
 
-    // ── Helpers de dibujo ──
+    // ── Construir HTML del reporte ──
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>PRESALES AR - Reporte de Estadisticas</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+@page{size:A4;margin:0}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a2e;font-size:11px;line-height:1.5}
+.page{width:210mm;height:297mm;padding:18mm;page-break-after:always;position:relative}
+.page:last-child{page-break-after:avoid}
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:5mm;padding-bottom:3mm;border-bottom:2.5px solid #8a38fe}
+.logo{font-size:20px;font-weight:800;color:#8a38fe}
+.sub{font-size:12px;font-weight:500;color:#6b6b80;margin-left:12px}
+.badge{background:#8a38fe;color:#fff;padding:4px 14px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:.5px}
+.frow{display:flex;align-items:center;gap:6px;margin-bottom:5mm;flex-wrap:wrap}
+.flbl{font-size:8.5px;font-weight:600;color:#6b6b80;text-transform:uppercase;letter-spacing:.8px}
+.ftag{display:inline-flex;align-items:center;gap:3px;background:#f8f7fc;border:1px solid #e8e6f0;padding:2px 10px;border-radius:12px;font-size:9px}
+.ftag b{color:#8a38fe;font-weight:600}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:5mm;margin-bottom:5mm}
+.kpi{background:#fff;border:1.5px solid #e8e6f0;border-radius:10px;padding:6mm 5mm;text-align:center;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#8a38fe,#a855f7)}
+.kv{font-size:26px;font-weight:800;color:#1a1a2e;line-height:1.1;margin-bottom:1.5mm}
+.kl{font-size:9px;font-weight:500;color:#6b6b80;text-transform:uppercase;letter-spacing:.5px}
+.fbox{background:#fff;border:1.5px solid #e8e6f0;border-radius:10px;padding:5mm}
+.fbox h3{font-size:11px;font-weight:600;text-align:center;margin-bottom:3mm}
+.fbars{display:flex;flex-direction:column;gap:2mm}
+.fr{display:flex;align-items:center;gap:2.5mm}
+.fl{width:30mm;font-size:8.5px;font-weight:500;text-align:right;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ft{flex:1;height:11px;background:#f8f7fc;border-radius:6px;overflow:hidden}
+.ff{height:100%;border-radius:6px}
+.fc{width:8mm;font-size:9px;font-weight:600;color:#6b6b80}
+.crow{display:grid;grid-template-columns:1fr 1fr;gap:5mm;margin-bottom:5mm}
+.cb{background:#fff;border:1.5px solid #e8e6f0;border-radius:10px;padding:4mm}
+.cb h3{font-size:10px;font-weight:600;text-align:center;margin-bottom:2mm}
+.cb img,.cc img{width:100%;height:auto;display:block}
+.cc{background:#fff;border:1.5px solid #e8e6f0;border-radius:10px;padding:4mm;display:flex;flex-direction:column;align-items:center}
+.cc h3{font-size:10px;font-weight:600;text-align:center;margin-bottom:2mm}
+.cc img{max-width:65%;height:auto}
+.st{font-size:12px;font-weight:700;margin-bottom:4mm;padding-bottom:1.5mm;border-bottom:1px solid #e8e6f0}
+.st span{color:#8a38fe}
+.note{font-size:8px;color:#6b6b80;font-style:italic;margin-top:3mm}
+.pf{position:absolute;bottom:12mm;left:18mm;right:18mm;display:flex;justify-content:space-between;border-top:1px solid #e8e6f0;padding-top:2mm}
+.pf div{font-size:7.5px;color:#6b6b80}
+@media screen{body{background:#e8e6f0}.page{margin:10mm auto;box-shadow:0 2px 20px rgba(0,0,0,.12);border-radius:4px}.btn-bar{position:fixed;top:10px;right:15px;z-index:999;display:flex;gap:8px}.btn-bar button{padding:8px 18px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:600;border-radius:8px;cursor:pointer;border:1.5px solid #ccc;background:#fff}.btn-bar .pri{background:#8a38fe;color:#fff;border-color:#8a38fe}.btn-bar .pri:hover{background:#7c22ce}.btn-bar .sec:hover{border-color:#555}}
+@media print{.btn-bar{display:none!important}.page{box-shadow:none;margin:0;border-radius:0}}
+</style>
+</head>
+<body>
+<div class="btn-bar"><button class="sec" onclick="window.close()">\u2715 Cerrar</button><button class="pri" onclick="window.print()">\u2B07 Guardar PDF</button></div>
 
-    function drawHeader(y) {
-      doc.setDrawColor(...COL.purple);
-      doc.setLineWidth(0.7);
-      doc.line(MG, y, W - MG, y);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(18);
-      doc.setTextColor(...COL.purple);
-      doc.text('PRESALES AR', MG, y + 6);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(11);
-      doc.setTextColor(...COL.muted);
-      doc.text('Reporte de Estadisticas', MG + 50, y + 6);
-      doc.setFillColor(...COL.purple);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9.5);
-      doc.setTextColor(255, 255, 255);
-      const bw = doc.getTextWidth(period) + 14;
-      doc.roundedRect(W - MG - bw, y - 1.2, bw, 8, 3, 3, 'F');
-      doc.text(period, W - MG - bw / 2, y + 4.5, { align: 'center' });
-      return y + 12;
-    }
+<div class="page">
+  <div class="hdr"><div style="display:flex;align-items:baseline"><span class="logo">PRESALES AR</span><span class="sub">Reporte de Estadisticas</span></div><span class="badge">${escapeHtml(period)}</span></div>
+  ${filters.length ? `<div class="frow"><span class="flbl">Filtros activos:</span>${filters.map(f => `<span class="ftag"><b>${escapeHtml(f.label)}:</b> ${escapeHtml(f.values.join(', '))}</span>`).join('')}</div>` : ''}
+  <div class="kpis">${kpis.map(k => `<div class="kpi"><div class="kv">${escapeHtml(k.value)}</div><div class="kl">${escapeHtml(k.label)}</div></div>`).join('')}</div>
+  <div class="fbox"><h3>Pipeline por Estado</h3><div class="fbars">${funnel.map(f => `<div class="fr"><div class="fl">${escapeHtml(f.label)}</div><div class="ft"><div class="ff" style="width:${f.pct}%;background:${f.color}"></div></div><div class="fc">${f.count}</div></div>`).join('')}</div></div>
+  <div class="note">* Datos exportados el ${ds} con los filtros aplicados en ese momento.</div>
+  <div class="pf"><div>PRESALES AR \u2014 Reporte de Estadisticas</div><div>1 / 3</div></div>
+</div>
 
-    function drawFooter(p, t) {
-      doc.setDrawColor(...COL.border);
-      doc.setLineWidth(0.2);
-      doc.line(MG, H - 14, W - MG, H - 14);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
-      doc.setTextColor(...COL.muted);
-      doc.text('PRESALES AR \u2014 Reporte de Estadisticas', MG, H - 10);
-      doc.text(p + ' / ' + t, W - MG, H - 10, { align: 'right' });
-    }
+<div class="page">
+  <div class="hdr"><div style="display:flex;align-items:baseline"><span class="logo">PRESALES AR</span><span class="sub">Reporte de Estadisticas</span></div><span class="badge">${escapeHtml(period)}</span></div>
+  <div class="st"><span>01</span> \u2014 Distribucion y Valor por Estado</div>
+  <div class="crow"><div class="cb"><h3>Distribucion por Estado</h3><img src="${ci('estado')}"/></div><div class="cb"><h3>TCV EUR por Estado</h3><img src="${ci('tcv')}"/></div></div>
+  <div class="st"><span>02</span> \u2014 Origen de Oportunidades</div>
+  <div class="cc"><img src="${ci('origen')}"/></div>
+  <div class="pf"><div>PRESALES AR \u2014 Reporte de Estadisticas</div><div>2 / 3</div></div>
+</div>
 
-    function drawFilters(y) {
-      if (!filters.length) return y;
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(7);
-      doc.setTextColor(...COL.muted);
-      const hdr = 'Filtros activos: ';
-      doc.text(hdr, MG, y);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(...COL.dark);
-      let txt = filters.join('  |  ');
-      const maxW = CW - doc.getTextWidth(hdr);
-      while (txt.length > 10 && doc.getTextWidth(txt) > maxW) txt = txt.slice(0, -4);
-      if (txt.length < filters.join('  |  ').length) txt += '...';
-      doc.text(txt, MG + doc.getTextWidth(hdr), y);
-      return y + 6;
-    }
+<div class="page">
+  <div class="hdr"><div style="display:flex;align-items:baseline"><span class="logo">PRESALES AR</span><span class="sub">Reporte de Estadisticas</span></div><span class="badge">${escapeHtml(period)}</span></div>
+  <div class="st"><span>03</span> \u2014 Por Responsable y Practica</div>
+  <div class="crow"><div class="cb"><h3>Por Responsable</h3><img src="${ci('resp')}"/></div><div class="cb"><h3>Por Practica / Area</h3><img src="${ci('prac')}"/></div></div>
+  <div class="st"><span>04</span> \u2014 Distribucion por Industria</div>
+  <div class="cc"><img src="${ci('ind')}"/></div>
+  <div class="pf"><div>PRESALES AR \u2014 Reporte de Estadisticas</div><div>3 / 3</div></div>
+</div>
 
-    function drawKPIs(y) {
-      const kw = (CW - 9) / 4, kh = 22;
-      kpis.forEach((k, i) => {
-        const x = MG + i * (kw + 3);
-        doc.setDrawColor(...COL.border);
-        doc.setLineWidth(0.4);
-        doc.roundedRect(x, y, kw, kh, 2, 2, 'S');
-        doc.setDrawColor(...COL.purple);
-        doc.setLineWidth(0.8);
-        doc.line(x + 1, y + 0.5, x + kw - 1, y + 0.5);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(k.value.length > 10 ? 15 : 19);
-        doc.setTextColor(...COL.dark);
-        doc.text(k.value, x + kw / 2, y + 12, { align: 'center' });
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7);
-        doc.setTextColor(...COL.muted);
-        doc.text(k.label.toUpperCase(), x + kw / 2, y + 18, { align: 'center' });
-      });
-      return y + kh + 5;
-    }
+</body></html>`;
 
-    function drawFunnel(y) {
-      const titleH = 7, rowH = 4.8;
-      const boxH = titleH + funnel.length * rowH + 4;
-      doc.setDrawColor(...COL.border);
-      doc.setLineWidth(0.3);
-      doc.roundedRect(MG, y, CW, boxH, 2, 2, 'S');
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.setTextColor(...COL.dark);
-      doc.text('Pipeline por Estado', W / 2, y + titleH - 1, { align: 'center' });
-      let fy = y + titleH;
-      const lblW = 28, cntW = 8, gap = 2;
-      const trkW = CW - lblW - cntW - gap * 2 - 6;
-      funnel.forEach(item => {
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.5);
-        doc.setTextColor(...COL.dark);
-        doc.text(item.label, MG + 3, fy + 2.5, { align: 'right', maxWidth: lblW });
-        const tx = MG + 3 + lblW + gap;
-        doc.setFillColor(...COL.lightBg);
-        doc.roundedRect(tx, fy, trkW, 3, 1.5, 1.5, 'F');
-        const fw = Math.max(0, trkW * item.pct / 100);
-        if (fw > 1) { doc.setFillColor(...item.color); doc.roundedRect(tx, fy, fw, 3, 1.5, 1.5, 'F'); }
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8);
-        doc.setTextColor(...COL.muted);
-        doc.text(item.count, tx + trkW + 2, fy + 2.5);
-        fy += rowH;
-      });
-      return y + boxH + 4;
-    }
-
-    function secTitle(y, n, t) {
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.setTextColor(...COL.purple);
-      doc.text(String(n).padStart(2, '0'), MG, y);
-      doc.setTextColor(...COL.dark);
-      doc.text('\u2014 ' + t, MG + doc.getTextWidth('00 '), y);
-      doc.setDrawColor(...COL.border);
-      doc.setLineWidth(0.2);
-      doc.line(MG, y + 2, W - MG, y + 2);
-      return y + 6;
-    }
-
-    function chartBox(x, y, w, h, title, img) {
-      doc.setDrawColor(...COL.border);
-      doc.setLineWidth(0.3);
-      doc.roundedRect(x, y, w, h, 2, 2, 'S');
-      if (title) {
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8.5);
-        doc.setTextColor(...COL.dark);
-        doc.text(title, x + w / 2, y + 5, { align: 'center' });
-      }
-      if (img) doc.addImage(img, 'PNG', x + 1.5, y + 7, w - 3, h - 9);
-    }
-
-    // ══════ PAGINA 1: Header + KPIs + Funnel ══════
-    let y = drawHeader(MG);
-    y = drawFilters(y + 1);
-    y += 3;
-    y = drawKPIs(y);
-    y += 2;
-    y = drawFunnel(y);
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(7);
-    doc.setTextColor(...COL.muted);
-    const ds = new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
-    doc.text('* Datos exportados el ' + ds + ' con los filtros aplicados en ese momento.', MG, y + 2);
-    drawFooter(1, 3);
-
-    // ══════ PAGINA 2: Estado + TCV + Origen ══════
-    doc.addPage();
-    y = drawHeader(MG);
-    y = secTitle(y + 1, 1, 'Distribucion y Valor por Estado');
-    const sw = (CW - 6) / 2, sh = 68;
-    chartBox(MG, y, sw, sh, 'Distribucion por Estado', cimg('estado'));
-    chartBox(MG + sw + 6, y, sw, sh, 'TCV EUR por Estado', cimg('tcv'));
-    y += sh + 8;
-    y = secTitle(y, 2, 'Origen de Oportunidades');
-    chartBox(MG + (CW - 82) / 2, y, 82, 55, 'Origen de Oportunidades', cimg('origen'));
-    drawFooter(2, 3);
-
-    // ══════ PAGINA 3: Responsable + Practica + Industria ══════
-    doc.addPage();
-    y = drawHeader(MG);
-    y = secTitle(y + 1, 3, 'Por Responsable y Practica');
-    chartBox(MG, y, sw, sh, 'Por Responsable', cimg('resp'));
-    chartBox(MG + sw + 6, y, sw, sh, 'Por Practica / Area', cimg('prac'));
-    y += sh + 8;
-    y = secTitle(y, 4, 'Distribucion por Industria');
-    chartBox(MG + (CW - 92) / 2, y, 92, 55, 'Distribucion por Industria', cimg('ind'));
-    drawFooter(3, 3);
-
-    // ══════ Guardar ══════
-    const safeName = period.replace(/[^\w\sáéíóúñÁÉÍÓÚÑ_\-]/g, '').replace(/\s+/g, '_');
-    doc.save('Estadisticas_' + safeName + '_' + new Date().toISOString().slice(0,10) + '.pdf');
-    TOAST.success('PDF descargado correctamente.');
+    // ── Abrir en nueva ventana ──
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, '_blank');
+    if (!w) { TOAST.error('Permite las ventanas emergentes para exportar.'); URL.revokeObjectURL(url); return; }
+    w.onload = () => setTimeout(() => w.print(), 800);
+    TOAST.success('Reporte generado. Elegi "Guardar como PDF" en la ventana de impresion.');
 
   } catch (e) {
     console.error('PDF export error:', e);
-    TOAST.error('Error al generar PDF: ' + e.message);
+    TOAST.error('Error al generar reporte: ' + e.message);
   }
 }
 
