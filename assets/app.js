@@ -1429,13 +1429,14 @@ const STATS_FILTER_LABELS = {
   estado: 'Estados',
   practica: 'Prácticas',
   responsable: 'Responsables',
-  cliente: 'Clientes'
+  cliente: 'Clientes',
+  industria: 'Industrias'
 };
 let _statsFilterState = {}; // { estado: Set, practica: Set, ... }
 let _statsFilterKeys = {};
 
 function initStatsFilters(rows) {
-  const fields = ['estado', 'practica', 'responsable', 'cliente'];
+  const fields = ['estado', 'practica', 'responsable', 'cliente', 'industria'];
   const allValues = {};
   fields.forEach(f => { allValues[f] = [...new Set(rows.map(r => r[f]).filter(Boolean))].sort(); });
 
@@ -1576,7 +1577,7 @@ function updateMsTrigger(field) {
 
 function applyStatsFilters(rows) {
   return rows.filter(r => {
-    const fields = ['estado', 'practica', 'responsable', 'cliente'];
+    const fields = ['estado', 'practica', 'responsable', 'cliente', 'industria'];
     for (const f of fields) {
       const allowed = _statsFilterState[f];
       if (!allowed) continue;
@@ -1588,7 +1589,7 @@ function applyStatsFilters(rows) {
 }
 
 function statsFiltersReset() {
-  const fields = ['estado', 'practica', 'responsable', 'cliente'];
+  const fields = ['estado', 'practica', 'responsable', 'cliente', 'industria'];
   fields.forEach(field => {
     const container = document.getElementById('sf_' + field);
     if (!container) return;
