@@ -992,9 +992,69 @@ async function initTabla(silent = false) {
   selC.innerHTML = '<option value="">Todos los clientes</option>';
   clientes.forEach(cl => selC.innerHTML += `<option>${escapeHtml(cl)}</option>`);
 
+  // Populate industrias
+  const industrias = [...new Set(_tablaRows.map(r => r.industria).filter(Boolean))].sort();
+  const selI = document.getElementById('t_industria');
+  selI.innerHTML = '<option value="">Todas las industrias</option>';
+  industrias.forEach(i => selI.innerHTML += `<option>${escapeHtml(i)}</option>`);
+
   _tablaPage = 1;
   renderTabla();
 }
+
+// ── Fecha Dropdown (Ver Todas) ──
+function toggleFechaDropdown() {
+  const dd = document.getElementById('t_fechaDropdown');
+  const btn = document.getElementById('t_fechaBtn');
+  const isOpen = dd.classList.contains('open');
+  // Close all other dropdowns first
+  document.querySelectorAll('.fecha-dropdown.open').forEach(d => d.classList.remove('open'));
+  document.querySelectorAll('.fecha-dropdown-btn.active').forEach(b => b.classList.remove('active'));
+  if (!isOpen) {
+    dd.classList.add('open');
+    btn.classList.add('active');
+  }
+}
+
+function onTablaFechaChange() {
+  const fDesde = document.getElementById('t_fechaDesde').value;
+  const fHasta = document.getElementById('t_fechaHasta').value;
+  updateFechaLabel(fDesde, fHasta);
+  renderTabla(1);
+}
+
+function updateFechaLabel(from, to) {
+  const label = document.getElementById('t_fechaLabel');
+  const btn = document.getElementById('t_fechaBtn');
+  if (from && to) {
+    label.textContent = from + '  →  ' + to;
+    btn.classList.add('has-value');
+  } else if (from) {
+    label.textContent = 'Desde: ' + from;
+    btn.classList.add('has-value');
+  } else if (to) {
+    label.textContent = 'Hasta: ' + to;
+    btn.classList.add('has-value');
+  } else {
+    label.textContent = 'Fecha';
+    btn.classList.remove('has-value');
+  }
+}
+
+function clearTablaFecha() {
+  document.getElementById('t_fechaDesde').value = '';
+  document.getElementById('t_fechaHasta').value = '';
+  updateFechaLabel('', '');
+  renderTabla(1);
+}
+
+// Close dropdown on click outside
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.fecha-dropdown-wrap')) {
+    document.querySelectorAll('.fecha-dropdown.open').forEach(d => d.classList.remove('open'));
+    document.querySelectorAll('.fecha-dropdown-btn.active').forEach(b => b.classList.remove('active'));
+  }
+});
 
 function sortTabla(key) {
   if (_sortKey === key) _sortDir *= -1;
@@ -1010,14 +1070,16 @@ function renderTabla(page) {
   const prac = document.getElementById('t_practica').value;
   const resp = document.getElementById('t_responsable').value;
   const cli  = document.getElementById('t_cliente').value;
+  const ind  = document.getElementById('t_industria').value;
   const fDesde = document.getElementById('t_fechaDesde').value;
   const fHasta = document.getElementById('t_fechaHasta').value;
 
   const rows = _tablaRows.filter(r => {
-    if (cli  && r.cliente  !== cli)  return false;
-    if (est  && r.estado   !== est)  return false;
-    if (prac && r.practica !== prac) return false;
+    if (cli  && r.cliente    !== cli)  return false;
+    if (est  && r.estado     !== est)  return false;
+    if (prac && r.practica   !== prac) return false;
     if (resp && r.responsable !== resp) return false;
+    if (ind  && r.industria  !== ind)  return false;
     if (fDesde) {
       const from = new Date(fDesde + 'T00:00:00');
       if (!isNaN(from.getTime()) && new Date(r.fechaInicio) < from) return false;

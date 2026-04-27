@@ -7,7 +7,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.exchangerate-api.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.gstatic.com; img-src 'self' data:; frame-src 'none'; object-src 'none';"/>
   <title>PRESALES AR</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-  <link href="assets/style.css?v=20" rel="stylesheet"/>
+  <link href="assets/style.css?v=21" rel="stylesheet"/>
   <!-- External Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
@@ -352,8 +352,22 @@
           <select id="t_estado" onchange="renderTabla(1)"><option value="">Todos los estados</option><option>En Desarrollo</option><option>Entregada</option><option>Pausa</option><option>No Go</option><option>Cancelada</option><option>Perdida</option><option>Ganada</option></select>
           <select id="t_practica" onchange="renderTabla(1)"><option value="">Todas las prácticas</option><option>AM</option><option>CES</option><option>Consultoría</option><option>DWP</option><option>Enablon</option><option>HCI</option><option>IA</option><option>SAP</option><option>Testing</option></select>
           <select id="t_responsable" onchange="renderTabla(1)"><option value="">Todos los responsables</option></select>
-          <input type="date" id="t_fechaDesde" onchange="renderTabla(1)" title="Creado desde">
-          <input type="date" id="t_fechaHasta" onchange="renderTabla(1)" title="Creado hasta">
+          <select id="t_industria" onchange="renderTabla(1)"><option value="">Todas las industrias</option></select>
+          <div class="fecha-dropdown-wrap">
+            <button class="fecha-dropdown-btn" id="t_fechaBtn" onclick="toggleFechaDropdown()">
+              <span id="t_fechaLabel">Fecha</span>
+              <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style="flex-shrink:0"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="fecha-dropdown" id="t_fechaDropdown">
+              <div class="fecha-dropdown-body">
+                <div class="fecha-field"><label>Desde</label><input type="date" id="t_fechaDesde" onchange="onTablaFechaChange()"></div>
+                <div class="fecha-field"><label>Hasta</label><input type="date" id="t_fechaHasta" onchange="onTablaFechaChange()"></div>
+                <div style="display:flex;gap:6px;margin-top:4px">
+                  <button class="btn btn-ghost fecha-clear-btn" onclick="clearTablaFecha()">Limpiar</button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="bulk-bar" id="todasBulkBar" style="display:none">
           <span class="bulk-bar-text"><span id="todasBulkCount">0</span> seleccionada(s)</span>
@@ -793,6 +807,6 @@
 <script src="assets/firebase-auth.js?v=2"></script>
 <script src="assets/firebase-db.js?v=7"></script>
 <script src="assets/theme.js?v=2"></script>
-<script src="assets/app.js?v=11"></script>
+<script src="assets/app.js?v=12"></script>
 </body>
 </html>
